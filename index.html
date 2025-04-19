@@ -105,8 +105,8 @@
         const timerInput = document.getElementById("timerInput").value;
         if (timerInput) {
             timerValue = parseInt(timerInput) * 60; // Convert minutes to seconds
-            updateTimerInJsonBin();
-            startTimer();
+            updateTimerInJsonBin();  // Update the timer in JSONBin
+            startTimer();  // Start the countdown timer
         }
     }
 
