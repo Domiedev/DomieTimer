@@ -6,7 +6,7 @@
     <title>Timer Setup</title>
     <style>
         body {
-            background-color: #2e2e2e;
+            background-color: #000000;
             color: white;
             font-family: Arial, sans-serif;
         }
@@ -54,7 +54,7 @@
 <div id="timerSection" class="hidden">
     <label for="timerInput">Enter timer (Minutes only):</label>
     <input type="number" id="timerInput" placeholder="Minutes" min="1">
-    <button id="setTimerBtn">Set Timer</button>
+    <button onclick="setTimer()">Set Timer</button>
     <button onclick="addFiveMinutes()">Add 5 Minutes</button>
 </div>
 
@@ -110,19 +110,7 @@
             const timerInMillis = timerInput * 60000; // Convert minutes to milliseconds
             set(timerRef, timerInMillis); // Update the timer in Firebase
             showTimer(); // Update the displayed timer
-            startCountdown(timerInMillis); // Start countdown after setting the timer
         }
-    }
-
-    // Start counting down the timer
-    function startCountdown(timerInMillis) {
-        setInterval(() => {
-            if (timerInMillis > 0) {
-                timerInMillis -= 1000; // Decrease by 1 second
-                set(timerRef, timerInMillis); // Update the timer in Firebase
-                showTimer(); // Update the displayed timer
-            }
-        }, 1000); // Update every second
     }
 
     // Add 5 minutes to the current timer
@@ -132,7 +120,6 @@
                 const currentTimer = snapshot.val();
                 const updatedTimer = currentTimer + 5 * 60000; // Add 5 minutes in milliseconds
                 set(timerRef, updatedTimer); // Update the timer in Firebase
-                showTimer(); // Update the displayed timer
             } else {
                 console.log("No data available");
             }
@@ -152,14 +139,13 @@
         }
     });
 
-    // Set up event listener for the "Set Timer" button
-    document.getElementById("setTimerBtn").addEventListener("click", setTimer);
-
-    // Real-time listener for updates in Firebase (timer refresh for other browsers)
+    // Real-time listener for timer updates (this ensures synchronization across devices)
     onValue(timerRef, (snapshot) => {
         if (snapshot.exists()) {
             const timerValue = snapshot.val();
             document.getElementById("timerDisplay").innerText = formatTime(timerValue);
+        } else {
+            console.log("No data available");
         }
     });
 
