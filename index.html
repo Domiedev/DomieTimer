@@ -61,7 +61,7 @@
 <script type="module">
     // Import the functions you need from the SDKs
     import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-    import { getDatabase, ref, set, get } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
+    import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
 
     // Your web app's Firebase configuration
     const firebaseConfig = {
@@ -110,7 +110,19 @@
             const timerInMillis = timerInput * 60000; // Convert minutes to milliseconds
             set(timerRef, timerInMillis); // Update the timer in Firebase
             showTimer(); // Update the displayed timer
+            startCountdown(timerInMillis); // Start countdown after setting the timer
         }
+    }
+
+    // Start counting down the timer
+    function startCountdown(timerInMillis) {
+        setInterval(() => {
+            if (timerInMillis > 0) {
+                timerInMillis -= 1000; // Decrease by 1 second
+                set(timerRef, timerInMillis); // Update the timer in Firebase
+                showTimer(); // Update the displayed timer
+            }
+        }, 1000); // Update every second
     }
 
     // Add 5 minutes to the current timer
@@ -142,6 +154,14 @@
 
     // Set up event listener for the "Set Timer" button
     document.getElementById("setTimerBtn").addEventListener("click", setTimer);
+
+    // Real-time listener for updates in Firebase (timer refresh for other browsers)
+    onValue(timerRef, (snapshot) => {
+        if (snapshot.exists()) {
+            const timerValue = snapshot.val();
+            document.getElementById("timerDisplay").innerText = formatTime(timerValue);
+        }
+    });
 
     // Show the timer initially
     showTimer();
