@@ -15,13 +15,13 @@
             background-color: black;
             color: #eee;
             box-sizing: border-box;
-            overflow-x: hidden; /* Prevent horizontal scrollbar if GIFs are wide */
+            overflow-x: hidden;
         }
 
         .side-gif {
-            /* Increased GIF size */
-            width: 250px;
-            height: auto; /* Maintain aspect ratio */
+            /* Further increased GIF size */
+            width: 350px;
+            height: auto;
             flex-shrink: 0;
         }
 
@@ -30,7 +30,7 @@
             flex-direction: column;
             align-items: center;
             text-align: center;
-            margin: 0 20px; /* Add some horizontal margin */
+            margin: 0 20px;
         }
 
         h1 {
@@ -39,7 +39,8 @@
         }
 
         #timerDisplay {
-            font-size: 3em;
+            /* Increased timer font size */
+            font-size: 5em;
             margin-bottom: 30px;
             color: #98FB98;
         }
@@ -47,7 +48,6 @@
         .admin-panel {
             margin-top: 20px;
             padding: 20px;
-            /* Removed border */
             border-radius: 8px;
             background-color: black;
             display: flex;
@@ -58,7 +58,6 @@
             box-sizing: border-box;
         }
 
-         /* Style for visually hiding labels but keeping them for accessibility */
          .sr-only {
             position: absolute;
             width: 1px;
@@ -71,7 +70,7 @@
             border-width: 0;
          }
 
-         .admin-panel label:not(.sr-only) { /* Style labels that are NOT sr-only */
+         .admin-panel label:not(.sr-only) {
              padding: 8px;
              font-size: 1em;
              margin: 2px;
@@ -82,20 +81,42 @@
              margin-right: 5px;
          }
 
-         .admin-panel input[type="password"],
-         .admin-panel input[type="number"] {
+         /* Section specifically for Password Input and ENTER button */
+         .password-section {
+             display: flex; /* Arrange items horizontally */
+             align-items: center; /* Align items vertically */
+             justify-content: center; /* Center items horizontally */
+             gap: 5px; /* Space between input and button */
+         }
+
+         .password-section input#password { /* Target password input specifically */
              padding: 8px;
              font-size: 1em;
-             margin: 2px 5px; /* Add slight horizontal margin */
              background-color: #333;
              color: #98FB98;
              border: 1px solid #555;
              border-radius: 4px;
              box-sizing: border-box;
+             /* Reduced width */
+             width: 100px;
+             margin: 0; /* Remove default margins if any */
          }
-         .password-section input {
-             width: 120px;
+
+         /* Target number input */
+         .admin-panel input[type="number"] {
+             padding: 8px;
+             font-size: 1em;
+             margin: 2px 5px;
+             background-color: #333;
+             color: #98FB98;
+             border: 1px solid #555;
+             border-radius: 4px;
+             box-sizing: border-box;
+             width: 80px;
+             text-align: center;
          }
+
+
          #adminControls {
              display: flex;
              flex-direction: column;
@@ -103,13 +124,10 @@
              align-items: center;
              width: 100%;
          }
-         #adminControls input {
-             width: 80px;
-             text-align: center;
-         }
+
 
         .admin-panel button {
-             padding: 10px 15px;
+             padding: 10px 15px; /* Default padding for other buttons */
              font-size: 1em;
              margin: 2px;
              background-color: #98FB98;
@@ -119,9 +137,11 @@
              cursor: pointer;
              transition: background-color 0.2s ease;
          }
-         /* Style specifically for the smaller ENTER button if needed */
+
+         /* Smaller ENTER button */
          #loginBtn {
-            padding: 10px 20px; /* Adjust padding for ENTER button */
+            padding: 8px 15px; /* Reduced padding */
+            font-size: 0.9em; /* Slightly smaller font */
          }
 
          .admin-panel button:hover:not(:disabled) {
@@ -298,7 +318,7 @@
 
                 if (response.status === 200) {
                      const data = await response.json();
-                     // console.log("Received data structure from JSONBin:", JSON.stringify(data, null, 2)); // Keep for debugging if needed
+                     // console.log("Received data structure from JSONBin:", JSON.stringify(data, null, 2));
 
                      let fetchedEndTimestamp = -1;
 
@@ -320,14 +340,14 @@
                          console.log(`Timestamp changed via fetch. Old: ${currentEndTimestamp}, New: ${fetchedEndTimestamp}. Restarting visuals.`);
                          startTimerVisuals(fetchedEndTimestamp);
                      } else {
-                        // if(isPolling) console.log("Polling: Timestamp unchanged."); // Can uncomment for verbose polling logs
+                        // if(isPolling) console.log("Polling: Timestamp unchanged.");
                      }
 
                      if (!isPolling) {
                          statusDiv.textContent = '';
                      }
                  } else if (response.status === 304) {
-                    // if(isPolling) console.log("Polling: Data not modified (304)."); // Can uncomment for verbose polling logs
+                    // if(isPolling) console.log("Polling: Data not modified (304).");
                  }
 
             } catch (error) {
@@ -467,9 +487,9 @@
 
         // --- Start Polling ---
         const POLLING_INTERVAL_MS = 15000; // Check every 15 seconds
-        // console.log(`Starting polling every ${POLLING_INTERVAL_MS / 1000} seconds.`); // Keep commented unless debugging polling
+        // console.log(`Starting polling every ${POLLING_INTERVAL_MS / 1000} seconds.`);
         setInterval(() => {
-            // console.log("Polling for timer update..."); // Keep commented unless debugging polling
+            // console.log("Polling for timer update...");
             fetchTimerData(true); // Pass true to indicate it's a polling call
         }, POLLING_INTERVAL_MS);
 
