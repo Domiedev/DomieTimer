@@ -134,6 +134,7 @@
         .then(data => {
             console.log("Timer updated:", data);
             fetchTimer(); // Fetch updated timer value after setting
+            location.reload(); // Reload the page to reflect the updated timer immediately
         })
         .catch(error => {
             console.error("Error updating timer:", error);
@@ -161,6 +162,7 @@
         timerValue += 5 * 60; // Add 5 minutes (in seconds)
         updateTimerInJsonBin();
         updateTimerDisplay();
+        location.reload(); // Reload the page to reflect the added minutes immediately
     }
 
     // Reset the timer to 0 minutes
@@ -169,6 +171,7 @@
         updateTimerInJsonBin();
         updateTimerDisplay();
         clearInterval(timerInterval); // Stop the countdown if it's running
+        location.reload(); // Reload the page to reflect the reset immediately
     }
 
     // Handle password submission
