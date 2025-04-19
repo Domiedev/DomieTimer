@@ -113,11 +113,11 @@
 
         // !!! ERSETZE 'SETZTE_MASTER' MIT DEINEM ECHTEN (!) JSONBIN MASTER KEY !!!
         // !!! ACHTUNG: Dieser Schlüssel ist im Quellcode sichtbar! Unsicher! !!!
-        const JSONBIN_API_KEY = '$2a$10$c4cqsrgXiejCDzbW9dT8heTgh3yBVNAFapRs1xOpr3KyoxzVDS6p.'; // <--- HIER DEINEN ECHTEN MASTER KEY EINFÜGEN
+        const JSONBIN_API_KEY = 'SETZTE_MASTER'; // <--- HIER DEINEN ECHTEN MASTER KEY EINFÜGEN
 
         // !!! ERSETZE 'SETZE_ACCESS' MIT DEINEM ECHTEN (!) JSONBIN ACCESS KEY !!!
         // Wird für das Lesen benötigt (zuverlässiger als ohne)
-        const JSONBIN_ACCESS_KEY = '$2a$10$aQg8aZf3yeI12bivdcAi7Odw6uen8Ctp5ZJ4H/u6pAhqjgCeH61k6'; // <--- HIER DEINEN ECHTEN ACCESS KEY EINFÜGEN
+        const JSONBIN_ACCESS_KEY = 'SETZE_ACCESS'; // <--- HIER DEINEN ECHTEN ACCESS KEY EINFÜGEN
 
         const ADMIN_PASSWORD = '1234'; // Dein Passwort (kannst du ändern)
         // --- Ende Konfiguration ---
@@ -138,7 +138,7 @@
         const errorStatusDiv = document.getElementById('errorStatus');
 
         let timerInterval = null;
-        let currentEndTimestamp = 0;
+        let currentEndTimestamp = 0; // Wichtig: Globaler Zustand des aktuellen Timers
 
         // Funktion zum Formatieren der Zeit
         function formatTime(ms) {
@@ -152,6 +152,7 @@
         // Funktion zum Updaten der Anzeige
         function updateTimer() {
             const now = Date.now();
+            // Nutzt den globalen currentEndTimestamp
             const remainingMs = Math.max(0, currentEndTimestamp - now);
             timerDisplay.textContent = formatTime(remainingMs);
             if (remainingMs <= 0) {
@@ -161,70 +162,120 @@
             }
         }
 
-        // Startet den visuellen Timer
+        // Startet den visuellen Timer (setzt auch globalen Zeitstempel)
         function startTimerVisuals(endTs) {
-            currentEndTimestamp = endTs;
-            clearInterval(timerInterval);
+            // Setzt den globalen Zeitstempel, auf den sich updateTimer verlässt
+            currentEndTimestamp = typeof endTs === 'number' ? endTs : 0;
+            console.log(`Setting currentEndTimestamp to: ${currentEndTimestamp}`); // Debug Log
+
+            clearInterval(timerInterval); // Alten Timer löschen
             timerInterval = null;
+
             const remainingMs = Math.max(0, currentEndTimestamp - Date.now());
             if (remainingMs > 0) {
-                updateTimer();
-                timerInterval = setInterval(updateTimer, 1000);
+                updateTimer(); // Sofort anzeigen
+                timerInterval = setInterval(updateTimer, 1000); // Neuen Timer starten
             } else {
-                timerDisplay.textContent = '0m 0s';
+                timerDisplay.textContent = '0m 0s'; // Direkt auf 0 setzen
             }
         }
 
-        // Funktion zum Abrufen des Timers von JSONBin (KORRIGIERTE VERSION)
-        async function fetchTimerData() {
-            statusDiv.textContent = 'Lade Timer...';
-            errorStatusDiv.textContent = '';
+       // Funktion zum Abrufen des Timers von JSONBin (Angepasst für Polling)
+        async function fetchTimerData(isPolling = false) {
+            // Nur beim initialen Laden oder bei Fehlern Status/Fehler zurücksetzen
+            if (!isPolling) {
+                statusDiv.textContent = 'Lade Timer...';
+                errorStatusDiv.textContent = '';
+            } else {
+                // Bei Polling nur Fehler zurücksetzen, nicht den Status
+                 errorStatusDiv.textContent = '';
+            }
+
             // Prüfe ob Access Key Platzhalter ist
             if (!JSONBIN_ACCESS_KEY || JSONBIN_ACCESS_KEY === 'SETZE_ACCESS') {
-                errorStatusDiv.textContent = 'Fehler: JSONBin Access Key nicht konfiguriert (Platzhalter SETZE_ACCESS gefunden)!';
-                console.error('Fehler: JSONBin Access Key nicht konfiguriert (Platzhalter SETZE_ACCESS gefunden)!');
-                startTimerVisuals(0);
+                errorStatusDiv.textContent = 'Fehler: JSONBin Access Key nicht konfiguriert!';
+                console.error('Fehler: JSONBin Access Key nicht konfiguriert!');
+                if(!isPolling) startTimerVisuals(0);
                 statusDiv.textContent = '';
                 return;
             }
+
             try {
                 const response = await fetch(BIN_URL_LATEST, {
                     method: 'GET',
                     headers: {
-                        'X-Access-Key': JSONBIN_ACCESS_KEY
+                        'X-Access-Key': JSONBIN_ACCESS_KEY,
+                        'Cache-Control': 'no-cache', // Versuchen Caching zu verhindern
+                         'Pragma': 'no-cache'        // Älterer Header für Caching-Verhinderung
                     }
                 });
-                if (!response.ok) {
+
+                // Fehler beim Fetch selbst behandeln
+                if (!response.ok && response.status !== 304) { // 304 ist kein Fehler, heißt "Nicht geändert"
                     let errorBody = '';
                     try { errorBody = await response.text(); } catch (e) {}
-                    throw new Error(`HTTP Fehler: ${response.status} - ${response.statusText}. Body: ${errorBody}`);
+                     if (!isPolling) { // Fehler nur initial prominent anzeigen
+                         console.error(`HTTP Fehler beim Laden: ${response.status} - ${response.statusText}. Body: ${errorBody}`);
+                         errorStatusDiv.textContent = `Fehler ${response.status} beim Laden. Timer läuft evtl. weiter.`;
+                         startTimerVisuals(0); // Initial Timer resetten
+                     } else {
+                         console.warn(`Polling HTTP Fehler: ${response.status}`);
+                         // Bei Polling Fehler nicht prominent anzeigen & Timer weiterlaufen lassen
+                     }
+                     statusDiv.textContent = '';
+                     return; // Funktion verlassen bei Fehler
                 }
-                const data = await response.json();
-                // Optional: Behalte dies zum Debuggen, wenn du willst
-                console.log("Received data structure from JSONBin:", JSON.stringify(data, null, 2));
 
-                // --- KORRIGIERTE PRÜFUNG ---
-                // Prüfe die verschachtelte Struktur: data -> record -> record -> endTimestamp
-                if (data && data.record && data.record.record && typeof data.record.record.endTimestamp === 'number') {
-                    // Greife korrekt auf den verschachtelten Wert zu
-                    startTimerVisuals(data.record.record.endTimestamp);
-                    statusDiv.textContent = '';
-                } else {
-                    // Datenstruktur ist nicht { record: { record: { endTimestamp: number } } }
+                // Nur wenn Status OK (200), Body lesen und verarbeiten.
+                if (response.status === 200) {
+                     const data = await response.json();
+                     console.log("Received data structure from JSONBin:", JSON.stringify(data, null, 2));
+
+                     let fetchedEndTimestamp = -1; // Standard ungültiger Wert
+
+                     if (data && data.record && data.record.record && typeof data.record.record.endTimestamp === 'number') {
+                         fetchedEndTimestamp = data.record.record.endTimestamp;
+                     } else {
+                         // Ungültige Struktur empfangen
+                         if (!isPolling) {
+                             errorStatusDiv.textContent = 'Timer-Daten empfangen, aber Struktur nicht wie erwartet. Setze auf 0.';
+                             console.error("Unerwartete oder ungültige Datenstruktur:", data);
+                             startTimerVisuals(0);
+                         } else {
+                             console.warn("Polling: Received unexpected data structure:", data);
+                         }
+                          statusDiv.textContent = '';
+                          return;
+                     }
+
+                     // --- Vergleichslogik ---
+                     // Nur neu starten, wenn Zeitstempel sich geändert hat
+                     if (fetchedEndTimestamp !== currentEndTimestamp) {
+                         console.log(`Timestamp changed via fetch. Old: ${currentEndTimestamp}, New: ${fetchedEndTimestamp}. Restarting visuals.`);
+                         startTimerVisuals(fetchedEndTimestamp); // Aktualisiert globalen Timestamp und startet Timer neu
+                     } else {
+                         // Zeitstempel nicht geändert, Log für Debugging beim Polling
+                         if(isPolling) console.log("Polling: Timestamp unchanged.");
+                     }
+
+                     // Lade-Status nur beim initialen erfolgreichen Laden entfernen
+                     if (!isPolling) {
+                         statusDiv.textContent = '';
+                     }
+                 } else if (response.status === 304) {
+                      // 304 Not Modified - alles ok, Daten haben sich nicht geändert
+                      if(isPolling) console.log("Polling: Data not modified (304).");
+                 }
+
+            } catch (error) { // Catch für Netzwerkfehler etc.
+                 if (!isPolling) {
+                    console.error('Fehler beim Abrufen des Timers:', error);
+                    errorStatusDiv.textContent = `Fehler beim Laden: ${error.message}. Zeige 0m 0s.`;
                     startTimerVisuals(0);
-                    // Angepasste Fehlermeldung
-                    errorStatusDiv.textContent = 'Timer-Daten empfangen, aber Struktur nicht wie erwartet ({record:{record:{endTimestamp:number}}}). Setze auf 0.';
-                    // Logge die unerwartete Struktur
-                    console.error("Unerwartete oder ungültige Datenstruktur:", data);
                     statusDiv.textContent = '';
-                }
-                // --- ENDE KORRIGIERTE PRÜFUNG ---
-
-            } catch (error) {
-                console.error('Fehler beim Abrufen des Timers:', error);
-                errorStatusDiv.textContent = `Fehler beim Laden: ${error.message}. Zeige 0m 0s.`;
-                startTimerVisuals(0);
-                statusDiv.textContent = '';
+                 } else {
+                      console.warn("Polling: Network or other error fetching timer:", error.message);
+                 }
             }
         }
 
@@ -241,7 +292,6 @@
              statusDiv.textContent = 'Speichere Timer...';
              errorStatusDiv.textContent = '';
              const timestampToSend = typeof newEndTimestamp === 'number' ? newEndTimestamp : 0;
-             // Wichtig: Wir senden weiterhin die einfache Struktur, die wir speichern wollen
              const dataToSend = { record: { endTimestamp: timestampToSend } };
 
             try {
@@ -251,7 +301,6 @@
                         'Content-Type': 'application/json',
                         'X-Master-Key': JSONBIN_API_KEY // ACHTUNG: Unsicher!
                     },
-                    // JSONBin PUT erwartet den *gesamten* neuen Inhalt des Bins
                     body: JSON.stringify(dataToSend)
                 });
                 if (!response.ok) {
@@ -263,8 +312,10 @@
                     throw new Error(`HTTP Fehler: ${response.status} - ${response.statusText}. Body: ${errorBody}`);
                 }
                 statusDiv.textContent = 'Timer erfolgreich gespeichert!';
-                // Nach erfolgreichem Speichern neu laden (die korrigierte fetch Funktion wird verwendet)
-                await fetchTimerData();
+                // Nach erfolgreichem Speichern *sofort* neu laden (die korrigierte fetch Funktion wird verwendet)
+                // Das stellt sicher, dass auch der *aktualisierende Client* den neuen Wert korrekt anzeigt
+                // Der Polling Mechanismus aktualisiert dann die anderen Clients
+                await fetchTimerData(false); // false, damit es als normale Aktualisierung gilt
                 return true;
             } catch (error) {
                 console.error('Fehler beim Speichern des Timers:', error);
@@ -310,7 +361,6 @@
             errorStatusDiv.textContent = '';
             const now = Date.now();
             const newEndTimestamp = now + minutes * 60 * 1000;
-            // updateJsonBin speichert { record: { endTimestamp: ... } }
             const success = await updateJsonBin(newEndTimestamp);
              if (success) {
                  minutesInput.value = '';
@@ -320,7 +370,6 @@
         // Clear Timer Button
         clearTimerBtn.addEventListener('click', async () => {
              errorStatusDiv.textContent = '';
-             // updateJsonBin speichert { record: { endTimestamp: 0 } }
             await updateJsonBin(0);
         });
 
@@ -328,41 +377,50 @@
         add5MinBtn.addEventListener('click', async () => {
              statusDiv.textContent = 'Füge 5 Minuten hinzu...';
              errorStatusDiv.textContent = '';
-             // Prüfe ob Access Key konfiguriert ist bevor wir lesen
+              // Prüfe ob Access Key konfiguriert ist bevor wir lesen
               if (!JSONBIN_ACCESS_KEY || JSONBIN_ACCESS_KEY === 'SETZE_ACCESS') {
                  errorStatusDiv.textContent = 'Fehler: Access Key fehlt für +5 Min Funktion.';
                  statusDiv.textContent = '';
                  return;
               }
             try {
-                 // fetchTimerData wird hier *nicht* direkt gerufen, wir lesen manuell
-                 // Aber die korrigierte fetchTimerData Logik muss hier quasi nachgebaut werden ODER wir rufen sie auf
-                 // Einfacher: fetchTimerData aufrufen um currentEndTimestamp zu aktualisieren
-                 await fetchTimerData(); // Stellt sicher, dass currentEndTimestamp aktuell ist
+                 // Rufe fetchTimerData auf, um sicherzustellen, dass 'currentEndTimestamp' aktuell ist
+                 // Die Funktion selbst prüft, ob sie den visuellen Timer neu starten muss.
+                 await fetchTimerData(false); // false, da dies eine explizite Aktion ist
 
                  // Prüfen ob Laden erfolgreich war (errorStatusDiv wäre gesetzt wenn nicht)
                  if(errorStatusDiv.textContent){
-                      // Fehler beim Laden, breche ab
                       statusDiv.textContent = ''; // 'Füge hinzu' Meldung entfernen
+                      // Fehler wurde bereits in fetchTimerData angezeigt
                       return;
                  }
 
                  const now = Date.now();
-                 // Verwende den globalen currentEndTimestamp, der von fetchTimerData gesetzt wurde
+                 // Verwende den globalen currentEndTimestamp, der von fetchTimerData korrekt gesetzt wurde
                  const baseTimestamp = Math.max(now, currentEndTimestamp);
                  const newEndTimestamp = baseTimestamp + 5 * 60 * 1000;
-                 // updateJsonBin speichert { record: { endTimestamp: ... } }
+
+                 // Speichere den neuen Wert. updateJsonBin ruft fetchTimerData erneut auf.
                  await updateJsonBin(newEndTimestamp);
 
-             } catch (error) { // Dieser Catch ist jetzt unwahrscheinlicher, da fetchTimerData Fehler fängt
+             } catch (error) {
+                 // Dieser Catch ist unwahrscheinlich, da Fehler in fetch/update behandelt werden sollten
                  console.error("Fehler bei +5 Min Logik:", error);
-                 errorStatusDiv.textContent = `Fehler beim +5 Min: ${error.message}`;
+                 errorStatusDiv.textContent = `Fehler bei +5 Min: ${error.message}`;
                  statusDiv.textContent = '';
              }
         });
 
         // --- Initialisierung ---
         fetchTimerData(); // Timer beim Laden der Seite holen (verwendet die korrigierte Funktion)
+
+        // --- Polling starten ---
+        const POLLING_INTERVAL_MS = 15000; // Alle 15 Sekunden nachfragen (15000ms)
+        console.log(`Starting polling every ${POLLING_INTERVAL_MS / 1000} seconds.`);
+        setInterval(() => {
+            // console.log("Polling for timer update..."); // Kann man auskommentieren wenn es stört
+            fetchTimerData(true); // true signalisiert, dass es ein Polling-Aufruf ist
+        }, POLLING_INTERVAL_MS);
 
     </script>
 
