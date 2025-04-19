@@ -59,8 +59,6 @@
     <label for="timerInput">Enter timer (Minutes only):</label>
     <input type="number" id="timerInput" placeholder="Minutes" min="1">
     <button id="setTimerBtn">Set Timer</button>
-    
-    <!-- Buttons container -->
     <div class="button-container">
         <button onclick="addFiveMinutes()">Add 5 Minutes</button>
         <button onclick="resetTimer()">Reset Timer</button>
@@ -68,129 +66,149 @@
 </div>
 
 <script>
-    // JSONBin API Key and ID
-    const BIN_ID = "680411228561e97a50033b62";
+    const timerRef = "https://api.jsonbin.io/v3/b/680411228561e97a50033b62"; // your jsonbin URL
     const X_MASTER_KEY = "$2a$10$eO4Awo0t5OAD8xVHkj31Ou2cuntC2OeoFX7vIPL6APc9lUZKAgeBW";
-    
-    // Timer data (initial value is 0)
-    let timerValue = 0;
-    let timerInterval;
+    let countdownInterval;
 
-    // Password
-    const correctPassword = "1234"; // For testing purposes
-
-    // Fetch the current timer from JSONBin
-    function fetchTimer() {
-        fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-            method: 'GET',
+    // Show the current timer from JSON bin
+    function showTimer() {
+        fetch(timerRef, {
             headers: {
-                'X-Master-Key': X_MASTER_KEY,
-                'Content-Type': 'application/json',
+                "X-Master-Key": X_MASTER_KEY
             }
         })
         .then(response => response.json())
         .then(data => {
-            if (data.record && data.record.timer !== undefined) {
-                timerValue = data.record.timer;
-                updateTimerDisplay();
-            } else {
-                console.log("No valid timer data found.");
+            const timer = data.record.timer || 0;
+            document.getElementById("timerDisplay").innerText = formatTime(timer);
+            if (timer > 0) {
+                startCountdown(timer); // Start countdown if timer > 0
             }
         })
         .catch(error => {
-            console.error("Error fetching timer data:", error);
+            console.log("Error fetching timer data:", error);
         });
     }
 
-    // Update the timer display (show only minutes)
-    function updateTimerDisplay() {
-        const minutes = Math.floor(timerValue / 60);  // Only show full minutes
-        document.getElementById("timerDisplay").innerText = `${minutes}m`;
+    // Format the time (minutes and seconds)
+    function formatTime(timeInMinutes) {
+        const minutes = Math.floor(timeInMinutes);
+        const seconds = Math.floor((timeInMinutes - minutes) * 60);
+        return `${minutes}m ${seconds}s`;
     }
 
-    // Set the timer
+    // Start countdown
+    function startCountdown(timeInMinutes) {
+        if (countdownInterval) {
+            clearInterval(countdownInterval); // Clear existing interval if any
+        }
+
+        countdownInterval = setInterval(() => {
+            fetch(timerRef, {
+                method: 'PUT',
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Master-Key": X_MASTER_KEY
+                },
+                body: JSON.stringify({ record: { timer: timeInMinutes - 0.0167 } }) // Decrease by ~1 second
+            })
+            .then(response => response.json())
+            .then(data => {
+                const updatedTime = data.record.timer;
+                document.getElementById("timerDisplay").innerText = formatTime(updatedTime);
+                if (updatedTime <= 0) {
+                    clearInterval(countdownInterval);
+                    alert("Timer Finished!");
+                    resetTimer(); // Reset the timer when it finishes
+                }
+            })
+            .catch(error => {
+                console.log("Error updating timer:", error);
+            });
+
+            timeInMinutes -= 0.0167; // Decrease time by ~1 second (1/60)
+        }, 1000); // Update every second
+    }
+
+    // Set timer
     function setTimer() {
         const timerInput = document.getElementById("timerInput").value;
-        if (timerInput) {
-            timerValue = parseInt(timerInput) * 60; // Convert minutes to seconds
-            updateTimerInJsonBin();  // Update the timer in JSONBin
-            startTimer();  // Start the countdown timer
+        if (timerInput && timerInput > 0) {
+            const timerInMinutes = parseFloat(timerInput);
+            fetch(timerRef, {
+                method: 'PUT',
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Master-Key": X_MASTER_KEY
+                },
+                body: JSON.stringify({ record: { timer: timerInMinutes } })
+            })
+            .then(() => {
+                showTimer(); // Update display after setting the timer
+            })
+            .catch(error => {
+                console.log("Error setting timer:", error);
+            });
         }
     }
 
-    // Update the timer value in JSONBin
-    function updateTimerInJsonBin() {
-        fetch(`https://api.jsonbin.io/v3/b/${BIN_ID}`, {
-            method: 'PUT',
+    // Add 5 minutes
+    function addFiveMinutes() {
+        fetch(timerRef, {
             headers: {
-                'X-Master-Key': X_MASTER_KEY,
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                "timer": timerValue
-            })
+                "X-Master-Key": X_MASTER_KEY
+            }
         })
         .then(response => response.json())
         .then(data => {
-            console.log("Timer updated:", data);
-            fetchTimer(); // Fetch updated timer value after setting
-            location.reload(); // Reload the page to reflect the updated timer immediately
+            const currentTimer = data.record.timer || 0;
+            const updatedTimer = currentTimer + 5;
+            fetch(timerRef, {
+                method: 'PUT',
+                headers: {
+                    "Content-Type": "application/json",
+                    "X-Master-Key": X_MASTER_KEY
+                },
+                body: JSON.stringify({ record: { timer: updatedTimer } })
+            })
+            .then(() => showTimer()) // Show updated timer
+            .catch(error => console.log("Error updating timer:", error));
         })
-        .catch(error => {
-            console.error("Error updating timer:", error);
-        });
+        .catch(error => console.log("Error fetching timer data:", error));
     }
 
-    // Start the countdown timer (every second)
-    function startTimer() {
-        if (timerInterval) clearInterval(timerInterval); // Clear any previous interval
-
-        timerInterval = setInterval(() => {
-            if (timerValue > 0) {
-                timerValue--;
-                updateTimerInJsonBin();
-                updateTimerDisplay();
-            } else {
-                clearInterval(timerInterval);
-                alert("Timer Finished!");
-            }
-        }, 1000); // Update every second (1000ms)
-    }
-
-    // Add 5 minutes to the current timer
-    function addFiveMinutes() {
-        timerValue += 5 * 60; // Add 5 minutes (in seconds)
-        updateTimerInJsonBin();
-        updateTimerDisplay();
-        location.reload(); // Reload the page to reflect the added minutes immediately
-    }
-
-    // Reset the timer to 0 minutes
+    // Reset timer
     function resetTimer() {
-        timerValue = 0; // Reset to 0 seconds
-        updateTimerInJsonBin();
-        updateTimerDisplay();
-        clearInterval(timerInterval); // Stop the countdown if it's running
-        location.reload(); // Reload the page to reflect the reset immediately
+        fetch(timerRef, {
+            method: 'PUT',
+            headers: {
+                "Content-Type": "application/json",
+                "X-Master-Key": X_MASTER_KEY
+            },
+            body: JSON.stringify({ record: { timer: 0 } })
+        })
+        .then(() => {
+            document.getElementById("timerDisplay").innerText = formatTime(0);
+        })
+        .catch(error => console.log("Error resetting timer:", error));
     }
 
-    // Handle password submission
+    // Password check
     document.getElementById("submitPasswordBtn").addEventListener("click", () => {
         const password = document.getElementById("passwordField").value;
-        if (password === correctPassword) {
+        if (password === "1234") {
             document.getElementById("passwordSection").classList.add("hidden");
             document.getElementById("timerSection").classList.remove("hidden");
-            fetchTimer(); // Fetch the timer value once the password is correct
         } else {
             alert("Incorrect password!");
         }
     });
 
-    // Event listener for the "Set Timer" button
-    document.getElementById("setTimerBtn").addEventListener("click", setTimer);
+    // Show timer initially
+    showTimer();
 
-    // Fetch the initial timer when the page loads
-    fetchTimer();
+    // Set timer event listener
+    document.getElementById("setTimerBtn").addEventListener("click", setTimer);
 </script>
 
 </body>
