@@ -39,7 +39,7 @@
 </head>
 <body>
 
-<h1>How Long Does Domie N4eed?</h1>
+<h1>How Long Does Domie Need?</h1>
 
 <!-- Display the timer for everyone -->
 <div id="publicTimerDisplay">
@@ -77,7 +77,8 @@
         })
         .then(response => response.json())
         .then(data => {
-            currentTimer = data.record.timer;  // Store the current timer value from JSON
+            // Ensure the timer value is a number
+            currentTimer = parseFloat(data.record.timer) || 0;  // Use 0 if the value isn't a number
             document.getElementById("timerDisplay").innerText = formatTime(currentTimer);
         })
         .catch(error => console.error('Error:', error));
