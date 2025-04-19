@@ -58,25 +58,36 @@
     <button onclick="addFiveMinutes()">Add 5 Minutes</button>
 </div>
 
-<script>
-    const JSON_BIN_URL = 'https://api.jsonbin.io/v3/b/680411228561e97a50033b62';
-    const MASTER_KEY = 'YOUR_MASTER_KEY'; // Replace with your actual JSONBin master key
-    
-    // Show the timer for everyone
+<script type="module">
+    // Your JSONBin API and Master Key
+    const JSON_BIN_URL = 'https://api.jsonbin.io/v3/b/680411228561e97a50033b62'; // Your Bin ID URL
+    const MASTER_KEY = '$2a$10$eO4Awo0t5OAD8xVHkj31Ou2cuntC2OeoFX7vIPL6APc9lUZKAgeBW'; // Your X-Master Key
+
+    // Password and correct password
+    const correctPassword = "1234"; // Changed to 1234 for testing purposes
+    const timerRef = 'timer'; // Firebase reference for the timer value
+
+    // Show timer for everyone
     function showTimer() {
-        fetch(JSON_BIN_URL)
-            .then(response => response.json())
-            .then(data => {
-                if (data && data.timer) {
-                    const timerValue = data.timer;
-                    document.getElementById("timerDisplay").innerText = formatTime(timerValue);
-                } else {
-                    console.log("No timer data found");
-                }
-            })
-            .catch(error => {
-                console.error("Error fetching timer:", error);
-            });
+        fetch(JSON_BIN_URL, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': MASTER_KEY  // Use the correct Master Key
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.record && data.record.timer) {
+                const timerValue = data.record.timer;
+                document.getElementById("timerDisplay").innerText = formatTime(timerValue);
+            } else {
+                console.log("No data available");
+            }
+        })
+        .catch(error => {
+            console.error("Error fetching timer data:", error);
+        });
     }
 
     // Format time in minutes and seconds
@@ -91,21 +102,23 @@
         const timerInput = document.getElementById("timerInput").value;
         if (timerInput) {
             const timerInMillis = timerInput * 60000; // Convert minutes to milliseconds
-            // Update the timer value in the JSONBin
+
             fetch(JSON_BIN_URL, {
                 method: 'PUT',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-Master-Key': MASTER_KEY // Replace with your actual API master key
+                    'X-Master-Key': MASTER_KEY  // Use the correct Master Key
                 },
                 body: JSON.stringify({
-                    timer: timerInMillis
+                    record: {
+                        timer: timerInMillis
+                    }
                 })
             })
             .then(response => response.json())
             .then(data => {
                 console.log("Timer updated:", data);
-                showTimer(); // Update the displayed timer
+                showTimer(); // Call this to update the displayed timer
             })
             .catch(error => {
                 console.error("Error setting timer:", error);
@@ -115,47 +128,50 @@
 
     // Add 5 minutes to the current timer
     function addFiveMinutes() {
-        fetch(JSON_BIN_URL)
-            .then(response => response.json())
-            .then(data => {
-                if (data && data.timer) {
-                    const currentTimer = data.timer;
-                    const updatedTimer = currentTimer + 5 * 60000; // Add 5 minutes in milliseconds
-                    updateTimer(updatedTimer);
-                } else {
-                    console.log("No timer data found");
-                }
-            })
-            .catch(error => {
-                console.error("Error fetching timer:", error);
-            });
-    }
-
-    // Update the timer in JSONBin
-    function updateTimer(timerValue) {
         fetch(JSON_BIN_URL, {
-            method: 'PUT',
+            method: 'GET',
             headers: {
                 'Content-Type': 'application/json',
-                'X-Master-Key': MASTER_KEY // Replace with your actual API master key
-            },
-            body: JSON.stringify({
-                timer: timerValue
-            })
+                'X-Master-Key': MASTER_KEY  // Use the correct Master Key
+            }
         })
         .then(response => response.json())
         .then(data => {
-            console.log("Timer updated:", data);
+            if (data.record && data.record.timer) {
+                const currentTimer = data.record.timer;
+                const updatedTimer = currentTimer + 5 * 60000; // Add 5 minutes in milliseconds
+
+                fetch(JSON_BIN_URL, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': MASTER_KEY  // Use the correct Master Key
+                    },
+                    body: JSON.stringify({
+                        record: {
+                            timer: updatedTimer
+                        }
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    console.log("Timer updated:", data);
+                    showTimer(); // Call this to update the displayed timer
+                })
+                .catch(error => {
+                    console.error("Error updating timer:", error);
+                });
+            }
         })
         .catch(error => {
-            console.error("Error updating timer:", error);
+            console.error("Error fetching current timer:", error);
         });
     }
 
     // Handle password submission
     document.getElementById("submitPasswordBtn").addEventListener("click", () => {
         const password = document.getElementById("passwordField").value;
-        if (password === "your_password_here") {
+        if (password === correctPassword) {
             document.getElementById("passwordSection").classList.add("hidden");
             document.getElementById("timerSection").classList.remove("hidden");
         } else {
@@ -163,37 +179,11 @@
         }
     });
 
-    // Real-time sync for countdown every second
-    function startCountdown() {
-        setInterval(() => {
-            fetch(JSON_BIN_URL)
-                .then(response => response.json())
-                .then(data => {
-                    if (data && data.timer) {
-                        let timer = data.timer;
-                        if (timer > 0) {
-                            timer -= 1000; // Subtract 1 second (1000 milliseconds)
-                            updateTimer(timer);
-                        } else {
-                            alert("Timer Finished!");
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error("Error fetching timer:", error);
-                });
-        }, 1000); // Update every second
-    }
-
     // Show the timer initially
     showTimer();
-    
+
     // Add event listener for Set Timer button
     document.getElementById("setTimerBtn").addEventListener("click", setTimer);
-
-    // Start the countdown on page load
-    startCountdown();
-
 </script>
 
 </body>
