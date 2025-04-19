@@ -61,14 +61,18 @@
 <script>
     const timerUrl = "https://api.jsonbin.io/v3/b/680411228561e97a50033b62";  // Replace with your JSON bin URL
     let timerValue = 0;  // Store the timer value locally
+    let countdownInterval;  // Store interval for countdown
 
     // Fetch and display the current timer value from JSON bin
     function fetchTimer() {
         fetch(timerUrl)
             .then(response => response.json())
             .then(data => {
-                timerValue = data.data ? parseInt(data.data) : 0;  // Ensure it's a number
-                displayTimer();  // Display updated timer on page
+                const newTimerValue = data.data ? parseInt(data.data) : 0;  // Ensure it's a number
+                if (newTimerValue !== timerValue) {
+                    timerValue = newTimerValue;  // Update the timer value only if it changes
+                    displayTimer();  // Display updated timer on page
+                }
             })
             .catch(error => console.error("Error fetching timer:", error));
     }
@@ -79,9 +83,13 @@
         const seconds = Math.floor((timerValue % 60000) / 1000);  // Get remaining seconds
         document.getElementById("timerDisplay").innerText = `${minutes}m ${seconds}s`;
 
+        // If timer reaches zero, stop countdown and show the alert once
         if (timerValue <= 0) {
+            if (!document.getElementById("timerDisplay").classList.contains("finished")) {
+                alert("Timer finished!");
+                document.getElementById("timerDisplay").classList.add("finished");  // Ensure alert only triggers once
+            }
             clearInterval(countdownInterval);  // Stop countdown when timer reaches zero
-            alert("Timer finished!");
         }
     }
 
@@ -130,7 +138,7 @@
     // Handle password submission
     document.getElementById("submitPasswordBtn").addEventListener("click", () => {
         const password = document.getElementById("passwordField").value;
-        if (password === "1234") {  // Replace with your password
+        if (password === "your_password_here") {  // Replace with your password
             document.getElementById("passwordSection").classList.add("hidden");
             document.getElementById("timerSection").classList.remove("hidden");
         } else {
