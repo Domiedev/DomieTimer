@@ -43,7 +43,7 @@
 </head>
 <body>
 
-<h1>How Long Does Domie Need? CIRCA:</h1>
+<h1>How Long Does Domie Need?</h1>
 
 <!-- Display the timer for everyone -->
 <div id="publicTimerDisplay">
@@ -133,13 +133,14 @@
         .then(response => response.json())
         .then(data => {
             console.log("Timer updated:", data);
+            fetchTimer(); // Fetch updated timer value after setting
         })
         .catch(error => {
             console.error("Error updating timer:", error);
         });
     }
 
-    // Start the countdown timer
+    // Start the countdown timer (every second)
     function startTimer() {
         if (timerInterval) clearInterval(timerInterval); // Clear any previous interval
 
@@ -152,7 +153,7 @@
                 clearInterval(timerInterval);
                 alert("Timer Finished!");
             }
-        }, 60000); // Update every minute (60000ms)
+        }, 1000); // Update every second (1000ms)
     }
 
     // Add 5 minutes to the current timer
