@@ -80,7 +80,7 @@
         .then(data => {
             if (data.record && data.record.timer) {
                 const timerValue = data.record.timer;
-                document.getElementById("timerDisplay").innerText = formatTime(timerValue);
+                document.getElementById("timerDisplay").innerText = `${timerValue}m`;
             } else {
                 console.log("No data available");
             }
@@ -90,18 +90,11 @@
         });
     }
 
-    // Format time in minutes and seconds
-    function formatTime(timeInMillis) {
-        const minutes = Math.floor(timeInMillis / 60000);
-        const seconds = Math.floor((timeInMillis % 60000) / 1000);
-        return `${minutes}m ${seconds}s`;
-    }
-
     // Set timer
     function setTimer() {
         const timerInput = document.getElementById("timerInput").value;
         if (timerInput) {
-            const timerInMillis = timerInput * 60000; // Convert minutes to milliseconds
+            const timerInMinutes = parseInt(timerInput, 10); // Convert minutes to integer
 
             fetch(JSON_BIN_URL, {
                 method: 'PUT',
@@ -111,7 +104,7 @@
                 },
                 body: JSON.stringify({
                     record: {
-                        timer: timerInMillis
+                        timer: timerInMinutes // Store minutes only
                     }
                 })
             })
@@ -139,7 +132,7 @@
         .then(data => {
             if (data.record && data.record.timer) {
                 const currentTimer = data.record.timer;
-                const updatedTimer = currentTimer + 5 * 60000; // Add 5 minutes in milliseconds
+                const updatedTimer = currentTimer + 5; // Add 5 minutes
 
                 fetch(JSON_BIN_URL, {
                     method: 'PUT',
@@ -149,7 +142,7 @@
                     },
                     body: JSON.stringify({
                         record: {
-                            timer: updatedTimer
+                            timer: updatedTimer // Store minutes only
                         }
                     })
                 })
