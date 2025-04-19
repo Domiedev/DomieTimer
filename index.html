@@ -28,30 +28,54 @@
             flex-direction: column;
             gap: 15px; /* Abstand zwischen Elementen */
             align-items: center; /* Zentriert Elemente horizontal */
+            width: 300px; /* Feste Breite für das Panel */
+            box-sizing: border-box;
         }
-        .admin-panel label,
-        .admin-panel input,
-        .admin-panel button {
-            padding: 8px;
-            font-size: 1em;
-        }
-         .admin-panel input {
-             width: 80px; /* Feste Breite für Inputs */
+         .admin-panel label,
+         .admin-panel input,
+         .admin-panel button {
+             padding: 8px;
+             font-size: 1em;
+             margin: 2px; /* Kleiner Rand */
+         }
+         .password-section input {
+             width: 120px;
+         }
+         #adminControls {
+             /* display: none; Wird jetzt über JS gesteuert */
+             display: flex;
+             flex-direction: column;
+             gap: 15px;
+             align-items: center;
+             width: 100%; /* Nimmt die Breite des Panels ein */
+         }
+         #adminControls label{
+            display: inline-block;
+            width: 60px; /* Feste Breite für Label */
+            text-align: right;
+            margin-right: 5px;
+         }
+         #adminControls input {
+             width: 80px;
              text-align: center;
          }
         .button-group {
             display: flex;
             gap: 10px; /* Abstand zwischen Buttons */
+            justify-content: center; /* Buttons zentrieren */
+            width: 100%;
         }
         #status {
             margin-top: 15px;
             font-style: italic;
             color: green;
+            min-height: 1.2em; /* Platz reservieren */
         }
          #errorStatus {
-             margin-top: 15px;
+             margin-top: 5px; /* Näher an den Status */
              font-style: italic;
              color: red;
+             min-height: 1.2em; /* Platz reservieren */
          }
     </style>
 </head>
@@ -61,38 +85,51 @@
     <div id="timerDisplay">0m 0s</div>
 
     <div class="admin-panel">
-        <div>
+        <div class="password-section">
              <label for="password">Passwort:</label>
              <input type="password" id="password" placeholder="Passwort">
+             <button id="loginBtn">Anmelden</button>
          </div>
-         <div>
-             <label for="minutes">Minuten:</label>
-             <input type="number" id="minutes" placeholder="z.B. 20">
-             <button id="setTimerBtn">Timer setzen</button>
+
+         <div id="adminControls" style="display: none;">
+             <div>
+                 <label for="minutes">Minuten:</label>
+                 <input type="number" id="minutes" placeholder="z.B. 20">
+                 <button id="setTimerBtn">Setzen</button>
+             </div>
+             <div class="button-group">
+                <button id="add5MinBtn">+5 Min</button>
+                <button id="clearTimerBtn">Clear</button>
+             </div>
          </div>
-         <div class="button-group">
-            <button id="add5MinBtn">+5 Minuten</button>
-            <button id="clearTimerBtn">Clear Timer</button>
-         </div>
+
          <div id="status"></div>
          <div id="errorStatus"></div>
     </div>
 
     <script>
         // --- Konfiguration ---
-        const JSONBIN_ID = '680411228561e97a50033b62';
-        // !!! ERSETZE DIES MIT DEINEM ECHTEN JSONBIN MASTER KEY !!!
+        const JSONBIN_ID = '680411228561e97a50033b62'; // Deine Bin ID
+
+        // !!! ERSETZE DIES MIT DEINEM NEUEN (!) JSONBIN MASTER KEY !!!
         // !!! ACHTUNG: Dieser Schlüssel ist im Quellcode sichtbar! Unsicher! !!!
-        const JSONBIN_API_KEY = 'DEIN_JSONBIN_MASTER_KEY_HIER_EINFUEGEN';
-        const ADMIN_PASSWORD = '1234'; // Dein Passwort
+        const JSONBIN_API_KEY = '$2a$10$c4cqsrgXiejCDzbW9dT8heTgh3yBVNAFapRs1xOpr3KyoxzVDS6p.'; // <--- HIER DEINEN NEUEN (!) MASTER KEY
+
+        // !!! ERSETZE DIES MIT DEINEM NEUEN (!) JSONBIN ACCESS KEY !!!
+        // Wird für das Lesen benötigt (zuverlässiger als ohne)
+        const JSONBIN_ACCESS_KEY = '$2a$10$AFhW5.izeQsQj/Q8FxDMMuYMbK8TrT8hI50qjHl9xToJ7GZAOBNji'; // <--- HIER DEINEN NEUEN (!) ACCESS KEY
+
+        const ADMIN_PASSWORD = '1234'; // Dein Passwort (kannst du ändern)
         // --- Ende Konfiguration ---
 
         const BIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
-        const BIN_URL_LATEST = `${BIN_URL}/latest`; // Zum Lesen der neuesten Version
+        const BIN_URL_LATEST = `${BIN_URL}/latest`;
 
         // DOM Elemente
         const timerDisplay = document.getElementById('timerDisplay');
         const passwordInput = document.getElementById('password');
+        const loginBtn = document.getElementById('loginBtn');
+        const adminControlsDiv = document.getElementById('adminControls'); // Container für Admin-Felder
         const minutesInput = document.getElementById('minutes');
         const setTimerBtn = document.getElementById('setTimerBtn');
         const add5MinBtn = document.getElementById('add5MinBtn');
@@ -100,107 +137,101 @@
         const statusDiv = document.getElementById('status');
         const errorStatusDiv = document.getElementById('errorStatus');
 
+        let timerInterval = null;
+        let currentEndTimestamp = 0;
 
-        let timerInterval = null; // Hält die ID des setInterval
-        let currentEndTimestamp = 0; // Speichert den aktuellen Endzeitstempel global
-
-        // Funktion zum Formatieren der verbleibenden Millisekunden
+        // Funktion zum Formatieren der Zeit
         function formatTime(ms) {
-            if (ms <= 0) {
-                return '0m 0s';
-            }
+            if (ms <= 0) return '0m 0s';
             const totalSeconds = Math.max(0, Math.floor(ms / 1000));
             const minutes = Math.floor(totalSeconds / 60);
             const seconds = totalSeconds % 60;
             return `${minutes}m ${seconds}s`;
         }
 
-        // Funktion zum Updaten der Anzeige jede Sekunde
+        // Funktion zum Updaten der Anzeige
         function updateTimer() {
             const now = Date.now();
             const remainingMs = Math.max(0, currentEndTimestamp - now);
-
             timerDisplay.textContent = formatTime(remainingMs);
-
             if (remainingMs <= 0) {
                 clearInterval(timerInterval);
                 timerInterval = null;
-                 timerDisplay.textContent = '0m 0s'; // Sicherstellen, dass es 0 anzeigt
+                timerDisplay.textContent = '0m 0s';
             }
         }
 
-        // Startet oder stoppt den visuellen Timer
+        // Startet den visuellen Timer
         function startTimerVisuals(endTs) {
-            currentEndTimestamp = endTs; // Globalen Zeitstempel aktualisieren
-            clearInterval(timerInterval); // Alten Timer löschen
+            currentEndTimestamp = endTs;
+            clearInterval(timerInterval);
             timerInterval = null;
-
             const remainingMs = Math.max(0, currentEndTimestamp - Date.now());
-
             if (remainingMs > 0) {
-                updateTimer(); // Sofort aktualisieren
-                timerInterval = setInterval(updateTimer, 1000); // Neuen Timer starten
+                updateTimer();
+                timerInterval = setInterval(updateTimer, 1000);
             } else {
-                 timerDisplay.textContent = '0m 0s'; // Direkt auf 0 setzen wenn abgelaufen
+                timerDisplay.textContent = '0m 0s';
             }
         }
 
-        // Funktion zum Abrufen des aktuellen Timers von JSONBin
+        // Funktion zum Abrufen des Timers von JSONBin
         async function fetchTimerData() {
              statusDiv.textContent = 'Lade Timer...';
              errorStatusDiv.textContent = '';
+             // Prüfe ob Access Key Platzhalter ist
+             if (!JSONBIN_ACCESS_KEY || JSONBIN_ACCESS_KEY === '$2a$10$AFhW5.izeQsQj/Q8FxDMMuYMbK8TrT8hI50qjHl9xToJ7GZAOBNji') {
+                 errorStatusDiv.textContent = 'Fehler: JSONBin Access Key nicht konfiguriert!';
+                 console.error('Fehler: JSONBin Access Key nicht konfiguriert im JavaScript Code!');
+                 // Optional: Timer trotzdem auf 0 setzen oder anders behandeln
+                 startTimerVisuals(0);
+                 statusDiv.textContent = '';
+                 return; // Abbrechen, wenn Key fehlt
+             }
             try {
-                // Wir brauchen den API Key nicht zum Lesen, wenn der Bin öffentlich ist oder eine Access Key Regel existiert
-                // Falls Lesen fehlschlägt, brauchst du evtl. einen 'X-Access-Key' Header
                 const response = await fetch(BIN_URL_LATEST, {
                     method: 'GET',
                     headers: {
-                         // Eventuell benötigt: 'X-Access-Key': 'DEIN_ACCESS_KEY_FALLS_NOETIG'
+                         'X-Access-Key': JSONBIN_ACCESS_KEY // Access Key für's Lesen verwenden
                     }
                 });
-
                 if (!response.ok) {
-                    throw new Error(`HTTP Fehler: ${response.status} - ${response.statusText}`);
+                     // Versuche, die Fehlermeldung vom Server zu lesen
+                     let errorBody = '';
+                     try { errorBody = await response.text(); } catch(e) { /* Ignorieren, wenn Body nicht lesbar */ }
+                    throw new Error(`HTTP Fehler: ${response.status} - ${response.statusText}. Body: ${errorBody}`);
                 }
-
                 const data = await response.json();
-
                 if (data && data.record && typeof data.record.endTimestamp === 'number') {
                     startTimerVisuals(data.record.endTimestamp);
-                     statusDiv.textContent = ''; // Ladeanzeige entfernen
+                    statusDiv.textContent = '';
                 } else {
-                     // Wenn keine Daten oder falsches Format, Timer auf 0
-                     startTimerVisuals(0);
-                     errorStatusDiv.textContent = 'Konnte Timer-Daten nicht korrekt lesen. Setze auf 0.';
-                     console.error("Unerwartete Datenstruktur:", data);
+                    startTimerVisuals(0);
+                    errorStatusDiv.textContent = 'Ungültige Timer-Daten empfangen. Setze auf 0.';
+                    console.error("Unerwartete Datenstruktur:", data);
+                    statusDiv.textContent = '';
                 }
-
             } catch (error) {
                 console.error('Fehler beim Abrufen des Timers:', error);
                 errorStatusDiv.textContent = `Fehler beim Laden: ${error.message}. Zeige 0m 0s.`;
-                startTimerVisuals(0); // Bei Fehler Timer auf 0 setzen
-                 statusDiv.textContent = '';
+                startTimerVisuals(0);
+                statusDiv.textContent = '';
             }
         }
 
         // Funktion zum Schreiben des Timers nach JSONBin
         async function updateJsonBin(newEndTimestamp) {
-             if (!JSONBIN_API_KEY || JSONBIN_API_KEY === '$2a$10$eO4Awo0t5OAD8xVHkj31Ou2cuntC2OeoFX7vIPL6APc9lUZKAgeBW') {
-                errorStatusDiv.textContent = 'Fehler: JSONBin API Key nicht konfiguriert!';
-                alert('Fehler: JSONBin API Key nicht konfiguriert im JavaScript Code!');
+             // Prüfe ob Master Key Platzhalter ist
+             if (!JSONBIN_API_KEY || JSONBIN_API_KEY === '$2a$10$c4cqsrgXiejCDzbW9dT8heTgh3yBVNAFapRs1xOpr3KyoxzVDS6p.') {
+                errorStatusDiv.textContent = 'Fehler: JSONBin Master Key nicht konfiguriert!';
+                console.error('Fehler: JSONBin Master Key nicht konfiguriert im JavaScript Code!');
+                alert('Fehler: JSONBin Master Key nicht konfiguriert im JavaScript Code!');
                 return false;
              }
              statusDiv.textContent = 'Speichere Timer...';
              errorStatusDiv.textContent = '';
-
-             // Sicherstellen, dass der Zeitstempel eine Zahl ist
              const timestampToSend = typeof newEndTimestamp === 'number' ? newEndTimestamp : 0;
-
-             const dataToSend = {
-                record: {
-                    endTimestamp: timestampToSend
-                }
-             };
+             const dataToSend = { record: { endTimestamp: timestampToSend } };
 
             try {
                 const response = await fetch(BIN_URL, {
@@ -209,28 +240,26 @@
                         'Content-Type': 'application/json',
                         'X-Master-Key': JSONBIN_API_KEY // ACHTUNG: Unsicher!
                     },
-                    body: JSON.stringify(dataToSend) // Nur das 'record'-Objekt senden reicht oft nicht bei v3, ganzes Objekt senden
+                    body: JSON.stringify(dataToSend)
                 });
-
                 if (!response.ok) {
-                     const errorBody = await response.text();
-                     throw new Error(`HTTP Fehler: ${response.status} - ${response.statusText}. Body: ${errorBody}`);
+                    let errorBody = '';
+                    try { errorBody = await response.text(); } catch(e) {}
+                    // Prüfen ob es ein Key-Fehler ist (401)
+                    if (response.status === 401) {
+                         errorBody += ' (Ist der Master Key korrekt und der Bin gehört zum Account?)';
+                    }
+                    throw new Error(`HTTP Fehler: ${response.status} - ${response.statusText}. Body: ${errorBody}`);
                 }
-
-                const result = await response.json();
-                // JSONBin gibt oft das aktualisierte Record zurück, wir lesen es aber zur Sicherheit neu
                 statusDiv.textContent = 'Timer erfolgreich gespeichert!';
-                // Lade die Daten neu, um sicherzustellen, dass der Timer korrekt angezeigt wird
-                await fetchTimerData();
-                return true; // Erfolg
-
+                await fetchTimerData(); // Neu laden zur Sicherheit
+                return true;
             } catch (error) {
                 console.error('Fehler beim Speichern des Timers:', error);
                 errorStatusDiv.textContent = `Fehler beim Speichern: ${error.message}`;
                 statusDiv.textContent = '';
-                return false; // Misserfolg
+                return false;
             } finally {
-                 // Kurze Pause, bevor die Statusmeldung verschwindet
                  setTimeout(() => {
                      if (statusDiv.textContent === 'Timer erfolgreich gespeichert!') {
                          statusDiv.textContent = '';
@@ -239,91 +268,74 @@
              }
         }
 
-        // Passwortprüfung
-        function checkPassword() {
-            const enteredPassword = passwordInput.value;
-            if (enteredPassword !== ADMIN_PASSWORD) {
-                errorStatusDiv.textContent = 'Falsches Passwort!';
-                 passwordInput.value = ''; // Passwortfeld leeren
-                return false;
-            }
-            errorStatusDiv.textContent = ''; // Fehlermeldung löschen bei Erfolg
-            return true;
-        }
-
         // --- Event Listener ---
 
-        // Timer setzen Button
-        setTimerBtn.addEventListener('click', async () => {
-            if (!checkPassword()) return;
+        // Login Button
+        loginBtn.addEventListener('click', () => {
+            const enteredPassword = passwordInput.value;
+            if (enteredPassword === ADMIN_PASSWORD) {
+                adminControlsDiv.style.display = 'flex'; // Admin-Felder anzeigen (flex wegen Layout)
+                passwordInput.disabled = true; // Passwortfeld deaktivieren nach Login
+                loginBtn.disabled = true;      // Login-Button deaktivieren
+                errorStatusDiv.textContent = ''; // Evtl. alte Fehlermeldung löschen
+                statusDiv.textContent = 'Angemeldet.';
+                 setTimeout(() => { statusDiv.textContent = ''; }, 2000); // Meldung nach 2s ausblenden
+            } else {
+                errorStatusDiv.textContent = 'Falsches Passwort!';
+                passwordInput.value = ''; // Passwortfeld leeren
+                adminControlsDiv.style.display = 'none'; // Sicherstellen, dass Admin-Felder versteckt sind
+            }
+        });
 
+        // Timer setzen Button (keine Passwortprüfung mehr hier nötig)
+        setTimerBtn.addEventListener('click', async () => {
             const minutes = parseInt(minutesInput.value, 10);
             if (isNaN(minutes) || minutes < 0) {
                 errorStatusDiv.textContent = 'Bitte eine gültige positive Minutenzahl eingeben.';
+                 statusDiv.textContent = ''; // Alte Statusmeldung löschen
                 return;
             }
-
+            errorStatusDiv.textContent = ''; // Fehlermeldung löschen
             const now = Date.now();
             const newEndTimestamp = now + minutes * 60 * 1000;
-
             const success = await updateJsonBin(newEndTimestamp);
              if (success) {
-                 minutesInput.value = ''; // Eingabefeld leeren
-                 passwordInput.value = ''; // Passwortfeld leeren
+                 minutesInput.value = ''; // Feld leeren bei Erfolg
              }
         });
 
-        // Clear Timer Button
+        // Clear Timer Button (keine Passwortprüfung mehr hier nötig)
         clearTimerBtn.addEventListener('click', async () => {
-            if (!checkPassword()) return;
-
-            // Setze den Endzeitstempel auf 0 oder einen Wert in der Vergangenheit
-            const success = await updateJsonBin(0);
-             if(success){
-                 passwordInput.value = ''; // Passwortfeld leeren
-             }
+             errorStatusDiv.textContent = ''; // Fehlermeldung löschen
+            await updateJsonBin(0);
         });
 
-        // +5 Minuten Button
+        // +5 Minuten Button (keine Passwortprüfung mehr hier nötig)
         add5MinBtn.addEventListener('click', async () => {
-             if (!checkPassword()) return;
-
              statusDiv.textContent = 'Füge 5 Minuten hinzu...';
              errorStatusDiv.textContent = '';
-
-             // Aktuellen Stand holen (wichtig bei mehreren Admins oder Latenz)
             try {
-                 const response = await fetch(BIN_URL_LATEST); // Erneut lesen
+                 // Aktuellen Stand holen (wichtig bei Latenz)
+                 const response = await fetch(BIN_URL_LATEST, { headers: {'X-Access-Key': JSONBIN_ACCESS_KEY }});
                  if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
                  const data = await response.json();
-
                  let currentEnd = 0;
                  if (data && data.record && typeof data.record.endTimestamp === 'number') {
                      currentEnd = data.record.endTimestamp;
                  }
-
                  const now = Date.now();
-                 // Wenn der Timer schon abgelaufen ist, starten wir ihn neu mit 5 Minuten
-                 // Wenn er noch läuft, addieren wir 5 Minuten zum *aktuellen* Endzeitpunkt
-                 const baseTimestamp = Math.max(now, currentEnd); // Nimmt die spätere Zeit: jetzt oder das bisherige Ende
+                 const baseTimestamp = Math.max(now, currentEnd);
                  const newEndTimestamp = baseTimestamp + 5 * 60 * 1000;
-
-                 const success = await updateJsonBin(newEndTimestamp);
-                 if(success){
-                     passwordInput.value = ''; // Passwortfeld leeren
-                 }
-
+                 await updateJsonBin(newEndTimestamp);
              } catch (error) {
                  console.error("Fehler beim Holen des Timers für +5 Min:", error);
                  errorStatusDiv.textContent = `Fehler beim +5 Min: ${error.message}`;
                  statusDiv.textContent = '';
              }
-
         });
 
         // --- Initialisierung ---
-        // Timer beim Laden der Seite holen und starten
-        fetchTimerData();
+        fetchTimerData(); // Timer beim Laden der Seite holen
 
     </script>
 
