@@ -54,7 +54,7 @@
 <div id="timerSection" class="hidden">
     <label for="timerInput">Enter timer (Minutes only):</label>
     <input type="number" id="timerInput" placeholder="Minutes" min="1">
-    <button onclick="setTimer()">Set Timer</button>
+    <button id="setTimerBtn">Set Timer</button>
     <button onclick="addFiveMinutes()">Add 5 Minutes</button>
 </div>
 
@@ -148,6 +148,9 @@
             console.log("No data available");
         }
     });
+
+    // Add event listener for Set Timer button
+    document.getElementById("setTimerBtn").addEventListener("click", setTimer);
 
     // Show the timer initially
     showTimer();
