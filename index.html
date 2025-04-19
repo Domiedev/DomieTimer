@@ -35,15 +35,11 @@
         button:hover {
             background-color: #555;
         }
-        .button-container {
-            display: flex;
-            gap: 10px;
-        }
     </style>
 </head>
 <body>
 
-<h1>How Long Does Domie Need?</h1>
+<h1>How Long Does Domie N4eed?</h1>
 
 <!-- Display the timer for everyone -->
 <div id="publicTimerDisplay">
@@ -59,141 +55,81 @@
     <label for="timerInput">Enter timer (Minutes only):</label>
     <input type="number" id="timerInput" placeholder="Minutes" min="1">
     <button id="setTimerBtn">Set Timer</button>
-    <div class="button-container">
-        <button onclick="addFiveMinutes()">Add 5 Minutes</button>
-        <button onclick="resetTimer()">Reset Timer</button>
-    </div>
+    <button onclick="addFiveMinutes()">Add 5 Minutes</button>
+    <button onclick="resetTimer()">Reset Timer</button>
 </div>
 
 <script>
-    const timerRef = "https://api.jsonbin.io/v3/b/680411228561e97a50033b62"; // your jsonbin URL
-    const X_MASTER_KEY = "$2a$10$eO4Awo0t5OAD8xVHkj31Ou2cuntC2OeoFX7vIPL6APc9lUZKAgeBW";
-    let countdownInterval;
+    // Your JSONBin credentials and URL
+    const jsonbinUrl = 'https://api.jsonbin.io/v3/b/680411228561e97a50033b62';
+    const jsonbinKey = '$2a$10$eO4Awo0t5OAD8xVHkj31Ou2cuntC2OeoFX7vIPL6APc9lUZKAgeBW';
 
-    // Show the current timer from JSON bin
+    let currentTimer = 0; // This is to track the timer locally
+
+    // Show the current timer on the page
     function showTimer() {
-        fetch(timerRef, {
+        fetch(jsonbinUrl, {
+            method: 'GET',
             headers: {
-                "X-Master-Key": X_MASTER_KEY
+                'X-Master-Key': jsonbinKey,
+                'Content-Type': 'application/json'
             }
         })
         .then(response => response.json())
         .then(data => {
-            const timer = data.record.timer || 0;
-            document.getElementById("timerDisplay").innerText = formatTime(timer);
-            if (timer > 0) {
-                startCountdown(timer); // Start countdown if timer > 0
-            }
+            currentTimer = data.record.timer;  // Store the current timer value from JSON
+            document.getElementById("timerDisplay").innerText = formatTime(currentTimer);
         })
-        .catch(error => {
-            console.log("Error fetching timer data:", error);
-        });
+        .catch(error => console.error('Error:', error));
     }
 
-    // Format the time (minutes and seconds)
+    // Format the timer to show minutes and seconds
     function formatTime(timeInMinutes) {
         const minutes = Math.floor(timeInMinutes);
-        const seconds = Math.floor((timeInMinutes - minutes) * 60);
+        const seconds = Math.floor((timeInMinutes % 1) * 60);
         return `${minutes}m ${seconds}s`;
     }
 
-    // Start countdown
-    function startCountdown(timeInMinutes) {
-        if (countdownInterval) {
-            clearInterval(countdownInterval); // Clear existing interval if any
-        }
-
-        countdownInterval = setInterval(() => {
-            fetch(timerRef, {
-                method: 'PUT',
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Master-Key": X_MASTER_KEY
-                },
-                body: JSON.stringify({ record: { timer: timeInMinutes - 0.0167 } }) // Decrease by ~1 second
-            })
-            .then(response => response.json())
-            .then(data => {
-                const updatedTime = data.record.timer;
-                document.getElementById("timerDisplay").innerText = formatTime(updatedTime);
-                if (updatedTime <= 0) {
-                    clearInterval(countdownInterval);
-                    alert("Timer Finished!");
-                    resetTimer(); // Reset the timer when it finishes
-                }
-            })
-            .catch(error => {
-                console.log("Error updating timer:", error);
-            });
-
-            timeInMinutes -= 0.0167; // Decrease time by ~1 second (1/60)
-        }, 1000); // Update every second
-    }
-
-    // Set timer
+    // Set the timer value and update JSONBin
     function setTimer() {
-        const timerInput = document.getElementById("timerInput").value;
-        if (timerInput && timerInput > 0) {
-            const timerInMinutes = parseFloat(timerInput);
-            fetch(timerRef, {
-                method: 'PUT',
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Master-Key": X_MASTER_KEY
-                },
-                body: JSON.stringify({ record: { timer: timerInMinutes } })
-            })
-            .then(() => {
-                showTimer(); // Update display after setting the timer
-            })
-            .catch(error => {
-                console.log("Error setting timer:", error);
-            });
+        const timerInput = parseInt(document.getElementById("timerInput").value);
+        if (timerInput) {
+            currentTimer = timerInput;  // Update the local timer value
+            updateJSON(currentTimer);  // Send the updated timer to JSONBin
+            showTimer();  // Refresh the display
         }
     }
 
-    // Add 5 minutes
+    // Add 5 minutes to the current timer
     function addFiveMinutes() {
-        fetch(timerRef, {
-            headers: {
-                "X-Master-Key": X_MASTER_KEY
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            const currentTimer = data.record.timer || 0;
-            const updatedTimer = currentTimer + 5;
-            fetch(timerRef, {
-                method: 'PUT',
-                headers: {
-                    "Content-Type": "application/json",
-                    "X-Master-Key": X_MASTER_KEY
-                },
-                body: JSON.stringify({ record: { timer: updatedTimer } })
-            })
-            .then(() => showTimer()) // Show updated timer
-            .catch(error => console.log("Error updating timer:", error));
-        })
-        .catch(error => console.log("Error fetching timer data:", error));
+        currentTimer += 5;
+        updateJSON(currentTimer);
+        showTimer();
     }
 
-    // Reset timer
+    // Reset the timer to 0
     function resetTimer() {
-        fetch(timerRef, {
+        currentTimer = 0;
+        updateJSON(currentTimer);
+        showTimer();
+    }
+
+    // Update JSONBin with the new timer value
+    function updateJSON(timerValue) {
+        fetch(jsonbinUrl, {
             method: 'PUT',
             headers: {
-                "Content-Type": "application/json",
-                "X-Master-Key": X_MASTER_KEY
+                'X-Master-Key': jsonbinKey,
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ record: { timer: 0 } })
+            body: JSON.stringify({ "record": { "timer": timerValue } })
         })
-        .then(() => {
-            document.getElementById("timerDisplay").innerText = formatTime(0);
-        })
-        .catch(error => console.log("Error resetting timer:", error));
+        .then(response => response.json())
+        .then(data => console.log('Timer updated:', data))
+        .catch(error => console.error('Error:', error));
     }
 
-    // Password check
+    // Handle password submission
     document.getElementById("submitPasswordBtn").addEventListener("click", () => {
         const password = document.getElementById("passwordField").value;
         if (password === "1234") {
@@ -204,11 +140,16 @@
         }
     });
 
-    // Show timer initially
-    showTimer();
+    // Show the timer on page load
+    window.onload = function() {
+        showTimer();
+    };
 
-    // Set timer event listener
+    // Set timer button click event
     document.getElementById("setTimerBtn").addEventListener("click", setTimer);
+
+    // Real-time updates (if needed)
+    setInterval(showTimer, 1000);  // Refresh the timer every second
 </script>
 
 </body>
