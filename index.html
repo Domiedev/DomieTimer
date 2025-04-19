@@ -1,157 +1,331 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="de">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timer Setup</title>
+    <title>Domie's Timer</title>
     <style>
         body {
-            background-color: #000000;
-            color: white;
-            font-family: Arial, sans-serif;
+            font-family: sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-top: 50px;
+            background-color: #f4f4f4;
         }
         #timerDisplay {
-            font-size: 2em;
-            margin: 20px;
+            font-size: 3em;
+            margin-bottom: 20px;
+            color: #333;
         }
-        .hidden {
-            display: none;
+        .admin-panel {
+            margin-top: 30px;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            background-color: #fff;
+            display: flex;
+            flex-direction: column;
+            gap: 15px; /* Abstand zwischen Elementen */
+            align-items: center; /* Zentriert Elemente horizontal */
         }
-        #passwordField {
-            margin: 20px;
-            padding: 10px;
-            background-color: #444;
-            border: 1px solid #888;
-            color: white;
-            font-size: 1.2em;
+        .admin-panel label,
+        .admin-panel input,
+        .admin-panel button {
+            padding: 8px;
+            font-size: 1em;
         }
-        button {
-            padding: 10px;
-            background-color: #444;
-            color: white;
-            border: 1px solid #888;
-            cursor: pointer;
+         .admin-panel input {
+             width: 80px; /* Feste Breite für Inputs */
+             text-align: center;
+         }
+        .button-group {
+            display: flex;
+            gap: 10px; /* Abstand zwischen Buttons */
         }
-        button:hover {
-            background-color: #555;
+        #status {
+            margin-top: 15px;
+            font-style: italic;
+            color: green;
         }
+         #errorStatus {
+             margin-top: 15px;
+             font-style: italic;
+             color: red;
+         }
     </style>
 </head>
 <body>
 
-<h1>How Long Does Domie Need?</h1>
+    <h1>How long does domie need?</h1>
+    <div id="timerDisplay">0m 0s</div>
 
-<!-- Display the timer for everyone -->
-<div id="publicTimerDisplay">
-    <div id="timerDisplay">Loading Timer...</div>
-</div>
+    <div class="admin-panel">
+        <div>
+             <label for="password">Passwort:</label>
+             <input type="password" id="password" placeholder="Passwort">
+         </div>
+         <div>
+             <label for="minutes">Minuten:</label>
+             <input type="number" id="minutes" placeholder="z.B. 20">
+             <button id="setTimerBtn">Timer setzen</button>
+         </div>
+         <div class="button-group">
+            <button id="add5MinBtn">+5 Minuten</button>
+            <button id="clearTimerBtn">Clear Timer</button>
+         </div>
+         <div id="status"></div>
+         <div id="errorStatus"></div>
+    </div>
 
-<div id="passwordSection">
-    <input type="password" id="passwordField" placeholder="Enter password">
-    <button id="submitPasswordBtn">Submit</button>
-</div>
+    <script>
+        // --- Konfiguration ---
+        const JSONBIN_ID = '680411228561e97a50033b62';
+        // !!! ERSETZE DIES MIT DEINEM ECHTEN JSONBIN MASTER KEY !!!
+        // !!! ACHTUNG: Dieser Schlüssel ist im Quellcode sichtbar! Unsicher! !!!
+        const JSONBIN_API_KEY = 'DEIN_JSONBIN_MASTER_KEY_HIER_EINFUEGEN';
+        const ADMIN_PASSWORD = '1234'; // Dein Passwort
+        // --- Ende Konfiguration ---
 
-<div id="timerSection" class="hidden">
-    <label for="timerInput">Enter timer (Minutes only):</label>
-    <input type="number" id="timerInput" placeholder="Minutes" min="1">
-    <button id="setTimerBtn">Set Timer</button>
-    <button onclick="addFiveMinutes()">Add 5 Minutes</button>
-    <button onclick="resetTimer()">Reset Timer</button>
-</div>
+        const BIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
+        const BIN_URL_LATEST = `${BIN_URL}/latest`; // Zum Lesen der neuesten Version
 
-<script>
-    // Your JSONBin credentials and URL
-    const jsonbinUrl = 'https://api.jsonbin.io/v3/b/680411228561e97a50033b62';
-    const jsonbinKey = '$2a$10$eO4Awo0t5OAD8xVHkj31Ou2cuntC2OeoFX7vIPL6APc9lUZKAgeBW';
+        // DOM Elemente
+        const timerDisplay = document.getElementById('timerDisplay');
+        const passwordInput = document.getElementById('password');
+        const minutesInput = document.getElementById('minutes');
+        const setTimerBtn = document.getElementById('setTimerBtn');
+        const add5MinBtn = document.getElementById('add5MinBtn');
+        const clearTimerBtn = document.getElementById('clearTimerBtn');
+        const statusDiv = document.getElementById('status');
+        const errorStatusDiv = document.getElementById('errorStatus');
 
-    let currentTimer = 0; // This is to track the timer locally
 
-    // Show the current timer on the page
-    function showTimer() {
-        fetch(jsonbinUrl, {
-            method: 'GET',
-            headers: {
-                'X-Master-Key': jsonbinKey,
-                'Content-Type': 'application/json'
+        let timerInterval = null; // Hält die ID des setInterval
+        let currentEndTimestamp = 0; // Speichert den aktuellen Endzeitstempel global
+
+        // Funktion zum Formatieren der verbleibenden Millisekunden
+        function formatTime(ms) {
+            if (ms <= 0) {
+                return '0m 0s';
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            // Ensure the timer value is a number
-            currentTimer = parseFloat(data.record.timer) || 0;  // Use 0 if the value isn't a number
-            document.getElementById("timerDisplay").innerText = formatTime(currentTimer);
-        })
-        .catch(error => console.error('Error:', error));
-    }
-
-    // Format the timer to show minutes and seconds
-    function formatTime(timeInMinutes) {
-        const minutes = Math.floor(timeInMinutes);
-        const seconds = Math.floor((timeInMinutes % 1) * 60);
-        return `${minutes}m ${seconds}s`;
-    }
-
-    // Set the timer value and update JSONBin
-    function setTimer() {
-        const timerInput = parseInt(document.getElementById("timerInput").value);
-        if (timerInput) {
-            currentTimer = timerInput;  // Update the local timer value
-            updateJSON(currentTimer);  // Send the updated timer to JSONBin
-            showTimer();  // Refresh the display
+            const totalSeconds = Math.max(0, Math.floor(ms / 1000));
+            const minutes = Math.floor(totalSeconds / 60);
+            const seconds = totalSeconds % 60;
+            return `${minutes}m ${seconds}s`;
         }
-    }
 
-    // Add 5 minutes to the current timer
-    function addFiveMinutes() {
-        currentTimer += 5;
-        updateJSON(currentTimer);
-        showTimer();
-    }
+        // Funktion zum Updaten der Anzeige jede Sekunde
+        function updateTimer() {
+            const now = Date.now();
+            const remainingMs = Math.max(0, currentEndTimestamp - now);
 
-    // Reset the timer to 0
-    function resetTimer() {
-        currentTimer = 0;
-        updateJSON(currentTimer);
-        showTimer();
-    }
+            timerDisplay.textContent = formatTime(remainingMs);
 
-    // Update JSONBin with the new timer value
-    function updateJSON(timerValue) {
-        fetch(jsonbinUrl, {
-            method: 'PUT',
-            headers: {
-                'X-Master-Key': jsonbinKey,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ "record": { "timer": timerValue } })
-        })
-        .then(response => response.json())
-        .then(data => console.log('Timer updated:', data))
-        .catch(error => console.error('Error:', error));
-    }
-
-    // Handle password submission
-    document.getElementById("submitPasswordBtn").addEventListener("click", () => {
-        const password = document.getElementById("passwordField").value;
-        if (password === "1234") {
-            document.getElementById("passwordSection").classList.add("hidden");
-            document.getElementById("timerSection").classList.remove("hidden");
-        } else {
-            alert("Incorrect password!");
+            if (remainingMs <= 0) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+                 timerDisplay.textContent = '0m 0s'; // Sicherstellen, dass es 0 anzeigt
+            }
         }
-    });
 
-    // Show the timer on page load
-    window.onload = function() {
-        showTimer();
-    };
+        // Startet oder stoppt den visuellen Timer
+        function startTimerVisuals(endTs) {
+            currentEndTimestamp = endTs; // Globalen Zeitstempel aktualisieren
+            clearInterval(timerInterval); // Alten Timer löschen
+            timerInterval = null;
 
-    // Set timer button click event
-    document.getElementById("setTimerBtn").addEventListener("click", setTimer);
+            const remainingMs = Math.max(0, currentEndTimestamp - Date.now());
 
-    // Real-time updates (if needed)
-    setInterval(showTimer, 1000);  // Refresh the timer every second
-</script>
+            if (remainingMs > 0) {
+                updateTimer(); // Sofort aktualisieren
+                timerInterval = setInterval(updateTimer, 1000); // Neuen Timer starten
+            } else {
+                 timerDisplay.textContent = '0m 0s'; // Direkt auf 0 setzen wenn abgelaufen
+            }
+        }
+
+        // Funktion zum Abrufen des aktuellen Timers von JSONBin
+        async function fetchTimerData() {
+             statusDiv.textContent = 'Lade Timer...';
+             errorStatusDiv.textContent = '';
+            try {
+                // Wir brauchen den API Key nicht zum Lesen, wenn der Bin öffentlich ist oder eine Access Key Regel existiert
+                // Falls Lesen fehlschlägt, brauchst du evtl. einen 'X-Access-Key' Header
+                const response = await fetch(BIN_URL_LATEST, {
+                    method: 'GET',
+                    headers: {
+                         // Eventuell benötigt: 'X-Access-Key': 'DEIN_ACCESS_KEY_FALLS_NOETIG'
+                    }
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP Fehler: ${response.status} - ${response.statusText}`);
+                }
+
+                const data = await response.json();
+
+                if (data && data.record && typeof data.record.endTimestamp === 'number') {
+                    startTimerVisuals(data.record.endTimestamp);
+                     statusDiv.textContent = ''; // Ladeanzeige entfernen
+                } else {
+                     // Wenn keine Daten oder falsches Format, Timer auf 0
+                     startTimerVisuals(0);
+                     errorStatusDiv.textContent = 'Konnte Timer-Daten nicht korrekt lesen. Setze auf 0.';
+                     console.error("Unerwartete Datenstruktur:", data);
+                }
+
+            } catch (error) {
+                console.error('Fehler beim Abrufen des Timers:', error);
+                errorStatusDiv.textContent = `Fehler beim Laden: ${error.message}. Zeige 0m 0s.`;
+                startTimerVisuals(0); // Bei Fehler Timer auf 0 setzen
+                 statusDiv.textContent = '';
+            }
+        }
+
+        // Funktion zum Schreiben des Timers nach JSONBin
+        async function updateJsonBin(newEndTimestamp) {
+             if (!JSONBIN_API_KEY || JSONBIN_API_KEY === '$2a$10$eO4Awo0t5OAD8xVHkj31Ou2cuntC2OeoFX7vIPL6APc9lUZKAgeBW') {
+                errorStatusDiv.textContent = 'Fehler: JSONBin API Key nicht konfiguriert!';
+                alert('Fehler: JSONBin API Key nicht konfiguriert im JavaScript Code!');
+                return false;
+             }
+             statusDiv.textContent = 'Speichere Timer...';
+             errorStatusDiv.textContent = '';
+
+             // Sicherstellen, dass der Zeitstempel eine Zahl ist
+             const timestampToSend = typeof newEndTimestamp === 'number' ? newEndTimestamp : 0;
+
+             const dataToSend = {
+                record: {
+                    endTimestamp: timestampToSend
+                }
+             };
+
+            try {
+                const response = await fetch(BIN_URL, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_API_KEY // ACHTUNG: Unsicher!
+                    },
+                    body: JSON.stringify(dataToSend) // Nur das 'record'-Objekt senden reicht oft nicht bei v3, ganzes Objekt senden
+                });
+
+                if (!response.ok) {
+                     const errorBody = await response.text();
+                     throw new Error(`HTTP Fehler: ${response.status} - ${response.statusText}. Body: ${errorBody}`);
+                }
+
+                const result = await response.json();
+                // JSONBin gibt oft das aktualisierte Record zurück, wir lesen es aber zur Sicherheit neu
+                statusDiv.textContent = 'Timer erfolgreich gespeichert!';
+                // Lade die Daten neu, um sicherzustellen, dass der Timer korrekt angezeigt wird
+                await fetchTimerData();
+                return true; // Erfolg
+
+            } catch (error) {
+                console.error('Fehler beim Speichern des Timers:', error);
+                errorStatusDiv.textContent = `Fehler beim Speichern: ${error.message}`;
+                statusDiv.textContent = '';
+                return false; // Misserfolg
+            } finally {
+                 // Kurze Pause, bevor die Statusmeldung verschwindet
+                 setTimeout(() => {
+                     if (statusDiv.textContent === 'Timer erfolgreich gespeichert!') {
+                         statusDiv.textContent = '';
+                     }
+                 }, 3000);
+             }
+        }
+
+        // Passwortprüfung
+        function checkPassword() {
+            const enteredPassword = passwordInput.value;
+            if (enteredPassword !== ADMIN_PASSWORD) {
+                errorStatusDiv.textContent = 'Falsches Passwort!';
+                 passwordInput.value = ''; // Passwortfeld leeren
+                return false;
+            }
+            errorStatusDiv.textContent = ''; // Fehlermeldung löschen bei Erfolg
+            return true;
+        }
+
+        // --- Event Listener ---
+
+        // Timer setzen Button
+        setTimerBtn.addEventListener('click', async () => {
+            if (!checkPassword()) return;
+
+            const minutes = parseInt(minutesInput.value, 10);
+            if (isNaN(minutes) || minutes < 0) {
+                errorStatusDiv.textContent = 'Bitte eine gültige positive Minutenzahl eingeben.';
+                return;
+            }
+
+            const now = Date.now();
+            const newEndTimestamp = now + minutes * 60 * 1000;
+
+            const success = await updateJsonBin(newEndTimestamp);
+             if (success) {
+                 minutesInput.value = ''; // Eingabefeld leeren
+                 passwordInput.value = ''; // Passwortfeld leeren
+             }
+        });
+
+        // Clear Timer Button
+        clearTimerBtn.addEventListener('click', async () => {
+            if (!checkPassword()) return;
+
+            // Setze den Endzeitstempel auf 0 oder einen Wert in der Vergangenheit
+            const success = await updateJsonBin(0);
+             if(success){
+                 passwordInput.value = ''; // Passwortfeld leeren
+             }
+        });
+
+        // +5 Minuten Button
+        add5MinBtn.addEventListener('click', async () => {
+             if (!checkPassword()) return;
+
+             statusDiv.textContent = 'Füge 5 Minuten hinzu...';
+             errorStatusDiv.textContent = '';
+
+             // Aktuellen Stand holen (wichtig bei mehreren Admins oder Latenz)
+            try {
+                 const response = await fetch(BIN_URL_LATEST); // Erneut lesen
+                 if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
+                 const data = await response.json();
+
+                 let currentEnd = 0;
+                 if (data && data.record && typeof data.record.endTimestamp === 'number') {
+                     currentEnd = data.record.endTimestamp;
+                 }
+
+                 const now = Date.now();
+                 // Wenn der Timer schon abgelaufen ist, starten wir ihn neu mit 5 Minuten
+                 // Wenn er noch läuft, addieren wir 5 Minuten zum *aktuellen* Endzeitpunkt
+                 const baseTimestamp = Math.max(now, currentEnd); // Nimmt die spätere Zeit: jetzt oder das bisherige Ende
+                 const newEndTimestamp = baseTimestamp + 5 * 60 * 1000;
+
+                 const success = await updateJsonBin(newEndTimestamp);
+                 if(success){
+                     passwordInput.value = ''; // Passwortfeld leeren
+                 }
+
+             } catch (error) {
+                 console.error("Fehler beim Holen des Timers für +5 Min:", error);
+                 errorStatusDiv.textContent = `Fehler beim +5 Min: ${error.message}`;
+                 statusDiv.textContent = '';
+             }
+
+        });
+
+        // --- Initialisierung ---
+        // Timer beim Laden der Seite holen und starten
+        fetchTimerData();
+
+    </script>
 
 </body>
 </html>
