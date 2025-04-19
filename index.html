@@ -6,7 +6,7 @@
     <title>Timer Setup</title>
     <style>
         body {
-            background-color: #808080;
+            background-color: #000000;
             color: white;
             font-family: Arial, sans-serif;
         }
@@ -58,37 +58,25 @@
     <button onclick="addFiveMinutes()">Add 5 Minutes</button>
 </div>
 
-<script type="module">
-    // Import the functions you need from the SDKs
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-    import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
-
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSyBoZI8iWOG7nFXM5vhUdJe1jMPbiBAJvVM",
-        authDomain: "timer-23c1f.firebaseapp.com",
-        databaseURL: "https://timer-23c1f-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "timer-23c1f",
-        storageBucket: "timer-23c1f.firebasestorage.app",
-        messagingSenderId: "239286947747",
-        appId: "1:239286947747:web:ce78957836edcd2a7b5416"
-    };
-
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    // Password and correct password
-    const correctPassword = "your_password_here"; // Replace with your actual password
-    const timerRef = ref(db, 'timer'); // Firebase reference for the timer value
-
-    // Global variable to keep track of timer value
-    let timerValue = 0;  // Initial timer value
-    let countdownInterval;
-
-    // Show timer for everyone
+<script>
+    const JSON_BIN_URL = 'https://api.jsonbin.io/v3/b/680411228561e97a50033b62';
+    const MASTER_KEY = 'YOUR_MASTER_KEY'; // Replace with your actual JSONBin master key
+    
+    // Show the timer for everyone
     function showTimer() {
-        document.getElementById("timerDisplay").innerText = formatTime(timerValue);
+        fetch(JSON_BIN_URL)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.timer) {
+                    const timerValue = data.timer;
+                    document.getElementById("timerDisplay").innerText = formatTime(timerValue);
+                } else {
+                    console.log("No timer data found");
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching timer:", error);
+            });
     }
 
     // Format time in minutes and seconds
@@ -98,25 +86,76 @@
         return `${minutes}m ${seconds}s`;
     }
 
-    // Set timer in Firebase
+    // Set timer
     function setTimer() {
         const timerInput = document.getElementById("timerInput").value;
         if (timerInput) {
             const timerInMillis = timerInput * 60000; // Convert minutes to milliseconds
-            set(timerRef, timerInMillis); // Update the timer in Firebase
+            // Update the timer value in the JSONBin
+            fetch(JSON_BIN_URL, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Master-Key': MASTER_KEY // Replace with your actual API master key
+                },
+                body: JSON.stringify({
+                    timer: timerInMillis
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log("Timer updated:", data);
+                showTimer(); // Update the displayed timer
+            })
+            .catch(error => {
+                console.error("Error setting timer:", error);
+            });
         }
     }
 
     // Add 5 minutes to the current timer
     function addFiveMinutes() {
-        timerValue += 5 * 60000; // Add 5 minutes in milliseconds
-        set(timerRef, timerValue); // Update the timer in Firebase
+        fetch(JSON_BIN_URL)
+            .then(response => response.json())
+            .then(data => {
+                if (data && data.timer) {
+                    const currentTimer = data.timer;
+                    const updatedTimer = currentTimer + 5 * 60000; // Add 5 minutes in milliseconds
+                    updateTimer(updatedTimer);
+                } else {
+                    console.log("No timer data found");
+                }
+            })
+            .catch(error => {
+                console.error("Error fetching timer:", error);
+            });
+    }
+
+    // Update the timer in JSONBin
+    function updateTimer(timerValue) {
+        fetch(JSON_BIN_URL, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-Master-Key': MASTER_KEY // Replace with your actual API master key
+            },
+            body: JSON.stringify({
+                timer: timerValue
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log("Timer updated:", data);
+        })
+        .catch(error => {
+            console.error("Error updating timer:", error);
+        });
     }
 
     // Handle password submission
     document.getElementById("submitPasswordBtn").addEventListener("click", () => {
         const password = document.getElementById("passwordField").value;
-        if (password === correctPassword) {
+        if (password === "your_password_here") {
             document.getElementById("passwordSection").classList.add("hidden");
             document.getElementById("timerSection").classList.remove("hidden");
         } else {
@@ -124,38 +163,36 @@
         }
     });
 
-    // Real-time listener for timer updates (this ensures synchronization across devices)
-    onValue(timerRef, (snapshot) => {
-        if (snapshot.exists()) {
-            timerValue = snapshot.val();
-            showTimer();
-            if (timerValue <= 0) {
-                alert("Timer finished!");
-                clearInterval(countdownInterval); // Stop countdown when timer reaches zero
-            }
-        } else {
-            console.log("No data available");
-        }
-    });
-
-    // Countdown function
+    // Real-time sync for countdown every second
     function startCountdown() {
-        countdownInterval = setInterval(() => {
-            if (timerValue > 0) {
-                timerValue -= 1000; // Decrease by 1 second (1000 milliseconds)
-                set(timerRef, timerValue); // Update the timer in Firebase
-            }
-        }, 1000);
+        setInterval(() => {
+            fetch(JSON_BIN_URL)
+                .then(response => response.json())
+                .then(data => {
+                    if (data && data.timer) {
+                        let timer = data.timer;
+                        if (timer > 0) {
+                            timer -= 1000; // Subtract 1 second (1000 milliseconds)
+                            updateTimer(timer);
+                        } else {
+                            alert("Timer Finished!");
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error("Error fetching timer:", error);
+                });
+        }, 1000); // Update every second
     }
-
-    // Add event listener for Set Timer button
-    document.getElementById("setTimerBtn").addEventListener("click", () => {
-        setTimer();
-        startCountdown();
-    });
 
     // Show the timer initially
     showTimer();
+    
+    // Add event listener for Set Timer button
+    document.getElementById("setTimerBtn").addEventListener("click", setTimer);
+
+    // Start the countdown on page load
+    startCountdown();
 
 </script>
 
