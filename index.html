@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Shared Timer</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; padding: 2em; }
+    input, button { padding: 0.5em; margin: 0.5em; font-size: 1em; }
+    #timer { font-size: 3em; margin-top: 1em; }
+  </style>
+</head>
+<body>
+
+  <h1>Shared Timer</h1>
+
+  <div>
+    <label>Password: <input type="password" id="password"></label>
+  </div>
+
+  <div>
+    <input type="number" id="hours" placeholder="Hours" min="0">
+    <input type="number" id="minutes" placeholder="Minutes" min="0">
+    <input type="number" id="seconds" placeholder="Seconds" min="0">
+    <button onclick="setTimer()">Set Timer</button>
+    <button onclick="addFive()">+5 Minutes</button>
+  </div>
+
+  <div id="timer">Loading...</div>
+
+  <!-- Firebase App (the core Firebase SDK) -->
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.8.1/firebase-database.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBoZI8iWOG7nFXM5vhUdJe1jMPbiBAJvVM",
+      authDomain: "timer-23c1f.firebaseapp.com",
+      databaseURL: "https://timer-23c1f-default-rtdb.europe-west1.firebasedatabase.app",
+      projectId: "timer-23c1f",
+      storageBucket: "timer-23c1f.firebasestorage.app",
+      messagingSenderId: "239286947747",
+      appId: "1:239286947747:web:ce78957836edcd2a7b5416"
+    };
+
+    const PASSWORD = "secret123"; // Change this to your own password!
+
+    // Initialize Firebase
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+
+    let targetTime = 0;
+    db.ref("targetTime").on("value", (snap) => {
+      targetTime = snap.val() || 0;
+    });
+
+    setInterval(() => {
+      const remaining = targetTime - Date.now();
+      const timerEl = document.getElementById("timer");
+      if (remaining > 0) {
+        const mins = Math.floor(remaining / 60000);
+        const secs = Math.floor((remaining % 60000) / 1000);
+        timerEl.textContent = `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+      } else {
+        timerEl.textContent = "00:00";
+      }
+    }, 500);
+
+    function setTimer() {
+      if (document.getElementById("password").value !== PASSWORD) {
+        alert("Wrong password");
+        return;
+      }
+      const h = parseInt(document.getElementById("hours").value || 0);
+      const m = parseInt(document.getElementById("minutes").value || 0);
+      const s = parseInt(document.getElementById("seconds").value || 0);
+      const ms = ((h * 3600) + (m * 60) + s) * 1000;
+      const newTarget = Date.now() + ms;
+      db.ref("targetTime").set(newTarget);
+    }
+
+    function addFive() {
+      if (document.getElementById("password").value !== PASSWORD) {
+        alert("Wrong password");
+        return;
+      }
+      const newTarget = targetTime + 5 * 60 * 1000;
+      db.ref("targetTime").set(newTarget);
+    }
+  </script>
+
+</body>
+</html>
