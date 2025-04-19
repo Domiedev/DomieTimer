@@ -76,94 +76,72 @@
 
     // Initialize Firebase
     const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
 
-    // Initialize Realtime Database
-    const database = getDatabase(app);
+    // Password and correct password
+    const correctPassword = "your_password_here"; // Replace with your actual password
+    const timerRef = ref(db, 'timer'); // Firebase reference for the timer value
 
-    const password = "1234";  // Hardcoded password for simplicity
-
-    // Function to check the password
-    function checkPassword() {
-        const enteredPassword = document.getElementById('passwordField').value;
-        if (enteredPassword === password) {
-            console.log("Password correct!");
-            document.getElementById('passwordSection').classList.add('hidden');
-            document.getElementById('timerSection').classList.remove('hidden');
-            getTimerValue();  // Fetch the current timer value when unlocked
-        } else {
-            alert('Incorrect password!');
-        }
+    // Show timer for everyone
+    function showTimer() {
+        get(timerRef).then((snapshot) => {
+            if (snapshot.exists()) {
+                const timerValue = snapshot.val();
+                document.getElementById("timerDisplay").innerText = formatTime(timerValue);
+            } else {
+                console.log("No data available");
+            }
+        }).catch((error) => {
+            console.error(error);
+        });
     }
 
-    // Wait for the password submit button to be clicked
-    document.getElementById('submitPasswordBtn').addEventListener('click', function() {
-        checkPassword();
-    });
-
-    // Function to set the timer value in Firebase
-    function setTimer() {
-        const timerInput = document.getElementById('timerInput').value;
-        if (!timerInput || isNaN(timerInput) || timerInput <= 0) {
-            alert("Please enter a valid number of minutes.");
-            return;
-        }
-        const timeInMillis = timerInput * 60 * 1000; // Convert minutes to milliseconds
-        setTimerValue(timeInMillis);  // Call the function to set the value
-        displayTimer(timeInMillis);   // Update the timer display
-    }
-
-    // Function to display the timer
-    function displayTimer(timeInMillis) {
+    // Format time in minutes and seconds
+    function formatTime(timeInMillis) {
         const minutes = Math.floor(timeInMillis / 60000);
         const seconds = Math.floor((timeInMillis % 60000) / 1000);
-        document.getElementById('timerDisplay').textContent = `Timer: ${pad(minutes)}:${pad(seconds)}`;
+        return `${minutes}m ${seconds}s`;
     }
 
-    // Function to pad single-digit numbers with a leading zero
-    function pad(number) {
-        return number < 10 ? '0' + number : number;
+    // Set timer
+    function setTimer() {
+        const timerInput = document.getElementById("timerInput").value;
+        if (timerInput) {
+            const timerInMillis = timerInput * 60000; // Convert minutes to milliseconds
+            set(timerRef, timerInMillis); // Update the timer in Firebase
+            showTimer(); // Update the displayed timer
+        }
     }
 
-    // Function to add 5 minutes to the timer
+    // Add 5 minutes to the current timer
     function addFiveMinutes() {
-        const currentTimerValue = parseInt(localStorage.getItem('timerValue')) || 0;
-        const newTimerValue = currentTimerValue + 5 * 60 * 1000;  // Adding 5 minutes in milliseconds
-        setTimerValue(newTimerValue);
-        displayTimer(newTimerValue);
+        get(timerRef).then((snapshot) => {
+            if (snapshot.exists()) {
+                const currentTimer = snapshot.val();
+                const updatedTimer = currentTimer + 5 * 60000; // Add 5 minutes in milliseconds
+                set(timerRef, updatedTimer); // Update the timer in Firebase
+                showTimer(); // Update the displayed timer
+            } else {
+                console.log("No data available");
+            }
+        }).catch((error) => {
+            console.error(error);
+        });
     }
 
-    // Function to set the timer value in Firebase
-    function setTimerValue(timeInMillis) {
-        const timerRef = ref(database, 'targetTime');
-        set(timerRef, timeInMillis)
-            .then(() => {
-                console.log("Timer value saved to Firebase!");
-                localStorage.setItem('timerValue', timeInMillis);  // Store locally as well
-            })
-            .catch((error) => {
-                console.error("Error setting timer value:", error);
-            });
-    }
+    // Handle password submission
+    document.getElementById("submitPasswordBtn").addEventListener("click", () => {
+        const password = document.getElementById("passwordField").value;
+        if (password === correctPassword) {
+            document.getElementById("passwordSection").classList.add("hidden");
+            document.getElementById("timerSection").classList.remove("hidden");
+        } else {
+            alert("Incorrect password!");
+        }
+    });
 
-    // Function to get the timer value from Firebase
-    function getTimerValue() {
-        const timerRef = ref(database, 'targetTime');
-        get(timerRef)
-            .then((snapshot) => {
-                if (snapshot.exists()) {
-                    const time = snapshot.val();
-                    displayTimer(time);
-                } else {
-                    console.log("No timer value found in the database.");
-                }
-            })
-            .catch((error) => {
-                console.error("Error getting timer value:", error);
-            });
-    }
-
-    // Display timer initially for everyone
-    getTimerValue();
+    // Show the timer initially
+    showTimer();
 </script>
 
 </body>
