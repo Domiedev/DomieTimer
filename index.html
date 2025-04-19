@@ -41,17 +41,21 @@
 
 <h1>How Long Does Domie Need?</h1>
 
+<!-- Display the timer for everyone -->
+<div id="publicTimerDisplay">
+    <div id="timerDisplay">Loading Timer...</div>
+</div>
+
 <div id="passwordSection">
     <input type="password" id="passwordField" placeholder="Enter password">
     <button id="submitPasswordBtn">Submit</button>
 </div>
 
 <div id="timerSection" class="hidden">
-    <label for="timerInput">Enter timer (HH:MM:SS):</label>
-    <input type="text" id="timerInput" placeholder="00:20:00">
+    <label for="timerInput">Enter timer (Minutes only):</label>
+    <input type="number" id="timerInput" placeholder="Minutes" min="1">
     <button onclick="setTimer()">Set Timer</button>
     <button onclick="addFiveMinutes()">Add 5 Minutes</button>
-    <div id="timerDisplay">Timer: 00:00:00</div>
 </div>
 
 <script type="module">
@@ -82,7 +86,7 @@
     function checkPassword() {
         const enteredPassword = document.getElementById('passwordField').value;
         if (enteredPassword === password) {
-            console.log("Password correct!");  // Debugging line
+            console.log("Password correct!");
             document.getElementById('passwordSection').classList.add('hidden');
             document.getElementById('timerSection').classList.remove('hidden');
             getTimerValue();  // Fetch the current timer value when unlocked
@@ -99,26 +103,20 @@
     // Function to set the timer value in Firebase
     function setTimer() {
         const timerInput = document.getElementById('timerInput').value;
-        const timeInMillis = convertTimeToMillis(timerInput);
+        if (!timerInput || isNaN(timerInput) || timerInput <= 0) {
+            alert("Please enter a valid number of minutes.");
+            return;
+        }
+        const timeInMillis = timerInput * 60 * 1000; // Convert minutes to milliseconds
         setTimerValue(timeInMillis);
         displayTimer(timeInMillis);
     }
 
-    // Convert time (HH:MM:SS) to milliseconds
-    function convertTimeToMillis(time) {
-        const parts = time.split(':');
-        const hours = parseInt(parts[0], 10) || 0;
-        const minutes = parseInt(parts[1], 10) || 0;
-        const seconds = parseInt(parts[2], 10) || 0;
-        return (hours * 3600 + minutes * 60 + seconds) * 1000;
-    }
-
     // Function to display the timer
     function displayTimer(timeInMillis) {
-        const hours = Math.floor(timeInMillis / 3600000);
-        const minutes = Math.floor((timeInMillis % 3600000) / 60000);
+        const minutes = Math.floor(timeInMillis / 60000);
         const seconds = Math.floor((timeInMillis % 60000) / 1000);
-        document.getElementById('timerDisplay').textContent = `Timer: ${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+        document.getElementById('timerDisplay').textContent = `Timer: ${pad(minutes)}:${pad(seconds)}`;
     }
 
     // Function to pad single-digit numbers with a leading zero
@@ -163,6 +161,9 @@
                 console.error("Error getting timer value:", error);
             });
     }
+
+    // Display timer initially for everyone
+    getTimerValue();
 </script>
 
 </body>
