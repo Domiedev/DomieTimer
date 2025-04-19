@@ -7,20 +7,22 @@
     <style>
         body {
             font-family: sans-serif;
-            display: flex; /* Use Flexbox for layout */
-            justify-content: space-around; /* Space out items */
-            align-items: center; /* Vertically center items */
-            min-height: 100vh; /* Ensure body takes full viewport height */
-            padding: 20px; /* Add some padding */
-            background-color: black; /* Black background */
-            color: #eee; /* Default light text color */
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            background-color: black;
+            color: #eee;
             box-sizing: border-box;
+            overflow-x: hidden; /* Prevent horizontal scrollbar if GIFs are wide */
         }
 
         .side-gif {
-            max-width: 150px; /* Control GIF size */
-            max-height: 200px;
-            flex-shrink: 0; /* Prevent GIFs from shrinking */
+            /* Increased GIF size */
+            width: 250px;
+            height: auto; /* Maintain aspect ratio */
+            flex-shrink: 0;
         }
 
         .main-content {
@@ -28,38 +30,52 @@
             flex-direction: column;
             align-items: center;
             text-align: center;
+            margin: 0 20px; /* Add some horizontal margin */
         }
 
         h1 {
-            color: #98FB98; /* Pastel Green (PaleGreen) */
+            color: #98FB98;
             margin-bottom: 10px;
         }
 
         #timerDisplay {
             font-size: 3em;
             margin-bottom: 30px;
-            color: #98FB98; /* Pastel Green (PaleGreen) */
+            color: #98FB98;
         }
 
         .admin-panel {
             margin-top: 20px;
             padding: 20px;
-            border: 1px solid #555; /* Dark grey border */
+            /* Removed border */
             border-radius: 8px;
-            background-color: black; /* Black background for panel */
+            background-color: black;
             display: flex;
             flex-direction: column;
             gap: 15px;
             align-items: center;
-            width: 320px; /* Slightly wider width */
+            width: 320px;
             box-sizing: border-box;
         }
 
-         .admin-panel label {
+         /* Style for visually hiding labels but keeping them for accessibility */
+         .sr-only {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border-width: 0;
+         }
+
+         .admin-panel label:not(.sr-only) { /* Style labels that are NOT sr-only */
              padding: 8px;
              font-size: 1em;
              margin: 2px;
-             color: #98FB98; /* Pastel Green */
+             color: #98FB98;
              width: 60px;
              display: inline-block;
              text-align: right;
@@ -70,12 +86,11 @@
          .admin-panel input[type="number"] {
              padding: 8px;
              font-size: 1em;
-             margin: 2px;
-             background-color: #333; /* Dark grey background */
-             color: #98FB98; /* Pastel green text */
-             border: 1px solid #555; /* Dark grey border */
+             margin: 2px 5px; /* Add slight horizontal margin */
+             background-color: #333;
+             color: #98FB98;
+             border: 1px solid #555;
              border-radius: 4px;
-             width: 120px; /* Adjust width as needed */
              box-sizing: border-box;
          }
          .password-section input {
@@ -94,22 +109,27 @@
          }
 
         .admin-panel button {
-             padding: 10px 15px; /* Slightly larger padding */
+             padding: 10px 15px;
              font-size: 1em;
              margin: 2px;
-             background-color: #98FB98; /* Pastel Green background */
-             color: black; /* Black text */
+             background-color: #98FB98;
+             color: black;
              border: none;
              border-radius: 5px;
              cursor: pointer;
-             transition: background-color 0.2s ease; /* Smooth hover effect */
+             transition: background-color 0.2s ease;
          }
+         /* Style specifically for the smaller ENTER button if needed */
+         #loginBtn {
+            padding: 10px 20px; /* Adjust padding for ENTER button */
+         }
+
          .admin-panel button:hover:not(:disabled) {
-             background-color: #7edc7e; /* Slightly darker pastel green on hover */
+             background-color: #7edc7e;
          }
          .admin-panel button:disabled {
-             background-color: #555; /* Grey background for disabled */
-             color: #aaa; /* Lighter text for disabled */
+             background-color: #555;
+             color: #aaa;
              cursor: not-allowed;
          }
 
@@ -123,30 +143,28 @@
         #status {
             margin-top: 15px;
             font-style: italic;
-            color: lightgreen; /* Lighter green for status */
+            color: lightgreen;
             min-height: 1.2em;
         }
          #errorStatus {
              margin-top: 5px;
              font-style: italic;
-             color: lightcoral; /* Lighter red for error */
+             color: lightcoral;
              min-height: 1.2em;
          }
     </style>
 </head>
 <body>
 
-    <img src="mrbean.gif" alt="decorative gif" class="side-gif">
-
-    <div class="main-content">
+    <img src="mrbean.gif" alt="decorative gif" class="side-gif"> <div class="main-content">
         <h1>How long does domie need?</h1>
         <div id="timerDisplay">0m 0s</div>
 
         <div class="admin-panel">
             <div class="password-section">
-                 <label for="password">Passwort:</label>
+                 <label for="password" class="sr-only">Passwort:</label>
                  <input type="password" id="password" placeholder="Passwort">
-                 <button id="loginBtn">Anmelden</button>
+                 <button id="loginBtn">ENTER</button>
              </div>
 
              <div id="adminControls" style="display: none;">
@@ -166,10 +184,7 @@
         </div>
     </div>
 
-    <img src="mrbean.gif" alt="decorative gif" class="side-gif">
-
-
-    <script>
+    <img src="mrbean.gif" alt="decorative gif" class="side-gif"> <script>
         // --- Konfiguration ---
         const JSONBIN_ID = '680411228561e97a50033b62'; // Your Bin ID
 
@@ -200,7 +215,7 @@
         const errorStatusDiv = document.getElementById('errorStatus');
 
         let timerInterval = null;
-        let currentEndTimestamp = 0; // Global state for the current timer target
+        let currentEndTimestamp = 0;
 
         // Function to format time
         function formatTime(ms) {
@@ -283,7 +298,7 @@
 
                 if (response.status === 200) {
                      const data = await response.json();
-                     console.log("Received data structure from JSONBin:", JSON.stringify(data, null, 2));
+                     // console.log("Received data structure from JSONBin:", JSON.stringify(data, null, 2)); // Keep for debugging if needed
 
                      let fetchedEndTimestamp = -1;
 
@@ -305,14 +320,14 @@
                          console.log(`Timestamp changed via fetch. Old: ${currentEndTimestamp}, New: ${fetchedEndTimestamp}. Restarting visuals.`);
                          startTimerVisuals(fetchedEndTimestamp);
                      } else {
-                         if(isPolling) console.log("Polling: Timestamp unchanged.");
+                        // if(isPolling) console.log("Polling: Timestamp unchanged."); // Can uncomment for verbose polling logs
                      }
 
                      if (!isPolling) {
                          statusDiv.textContent = '';
                      }
                  } else if (response.status === 304) {
-                      if(isPolling) console.log("Polling: Data not modified (304).");
+                    // if(isPolling) console.log("Polling: Data not modified (304)."); // Can uncomment for verbose polling logs
                  }
 
             } catch (error) {
@@ -359,7 +374,6 @@
                     throw new Error(`HTTP Fehler: ${response.status} - ${response.statusText}. Body: ${errorBody}`);
                 }
                 statusDiv.textContent = 'Timer erfolgreich gespeichert!';
-                // Fetch immediately after successful save to update the current client
                 await fetchTimerData(false);
                 return true;
             } catch (error) {
@@ -428,9 +442,9 @@
                  return;
               }
             try {
-                 await fetchTimerData(false); // Fetch current state first
+                 await fetchTimerData(false);
 
-                 if(errorStatusDiv.textContent){ // Check if fetch failed
+                 if(errorStatusDiv.textContent){
                       statusDiv.textContent = '';
                       return;
                  }
@@ -453,9 +467,9 @@
 
         // --- Start Polling ---
         const POLLING_INTERVAL_MS = 15000; // Check every 15 seconds
-        console.log(`Starting polling every ${POLLING_INTERVAL_MS / 1000} seconds.`);
+        // console.log(`Starting polling every ${POLLING_INTERVAL_MS / 1000} seconds.`); // Keep commented unless debugging polling
         setInterval(() => {
-            // console.log("Polling for timer update..."); // Uncomment for verbose logging
+            // console.log("Polling for timer update..."); // Keep commented unless debugging polling
             fetchTimerData(true); // Pass true to indicate it's a polling call
         }, POLLING_INTERVAL_MS);
 
