@@ -43,7 +43,7 @@
 
 <div id="passwordSection">
     <input type="password" id="passwordField" placeholder="Enter password">
-    <button onclick="checkPassword()">Submit</button>
+    <button id="submitPasswordBtn">Submit</button>
 </div>
 
 <div id="timerSection" class="hidden">
@@ -82,6 +82,7 @@
     function checkPassword() {
         const enteredPassword = document.getElementById('passwordField').value;
         if (enteredPassword === password) {
+            console.log("Password correct!");  // Debugging line
             document.getElementById('passwordSection').classList.add('hidden');
             document.getElementById('timerSection').classList.remove('hidden');
             getTimerValue();  // Fetch the current timer value when unlocked
@@ -89,6 +90,11 @@
             alert('Incorrect password!');
         }
     }
+
+    // Wait for the password submit button to be clicked
+    document.getElementById('submitPasswordBtn').addEventListener('click', function() {
+        checkPassword();
+    });
 
     // Function to set the timer value in Firebase
     function setTimer() {
@@ -157,7 +163,6 @@
                 console.error("Error getting timer value:", error);
             });
     }
-
 </script>
 
 </body>
