@@ -111,13 +111,13 @@
         // --- Konfiguration ---
         const JSONBIN_ID = '680411228561e97a50033b62'; // Deine Bin ID
 
-        // !!! ERSETZE 'SETZTE_MASTER' MIT DEINEM NEUEN (!) JSONBIN MASTER KEY !!!
+        // !!! ERSETZE 'SETZTE_MASTER' MIT DEINEM ECHTEN (!) JSONBIN MASTER KEY !!!
         // !!! ACHTUNG: Dieser Schlüssel ist im Quellcode sichtbar! Unsicher! !!!
-        const JSONBIN_API_KEY = '$2a$10$c4cqsrgXiejCDzbW9dT8heTgh3yBVNAFapRs1xOpr3KyoxzVDS6p.'; // <--- HIER DEINEN NEUEN (!) MASTER KEY EINFÜGEN
+        const JSONBIN_API_KEY = '$2a$10$c4cqsrgXiejCDzbW9dT8heTgh3yBVNAFapRs1xOpr3KyoxzVDS6p.'; // <--- HIER DEINEN ECHTEN MASTER KEY EINFÜGEN
 
-        // !!! ERSETZE 'SETZE_ACCESS' MIT DEINEM NEUEN (!) JSONBIN ACCESS KEY !!!
+        // !!! ERSETZE 'SETZE_ACCESS' MIT DEINEM ECHTEN (!) JSONBIN ACCESS KEY !!!
         // Wird für das Lesen benötigt (zuverlässiger als ohne)
-        const JSONBIN_ACCESS_KEY = '$2a$10$aQg8aZf3yeI12bivdcAi7Odw6uen8Ctp5ZJ4H/u6pAhqjgCeH61k6'; // <--- HIER DEINEN NEUEN (!) ACCESS KEY EINFÜGEN
+        const JSONBIN_ACCESS_KEY = '$2a$10$aQg8aZf3yeI12bivdcAi7Odw6uen8Ctp5ZJ4H/u6pAhqjgCeH61k6'; // <--- HIER DEINEN ECHTEN ACCESS KEY EINFÜGEN
 
         const ADMIN_PASSWORD = '1234'; // Dein Passwort (kannst du ändern)
         // --- Ende Konfiguration ---
@@ -129,7 +129,7 @@
         const timerDisplay = document.getElementById('timerDisplay');
         const passwordInput = document.getElementById('password');
         const loginBtn = document.getElementById('loginBtn');
-        const adminControlsDiv = document.getElementById('adminControls'); // Container für Admin-Felder
+        const adminControlsDiv = document.getElementById('adminControls');
         const minutesInput = document.getElementById('minutes');
         const setTimerBtn = document.getElementById('setTimerBtn');
         const add5MinBtn = document.getElementById('add5MinBtn');
@@ -175,40 +175,51 @@
             }
         }
 
-        // Funktion zum Abrufen des Timers von JSONBin
+        // Funktion zum Abrufen des Timers von JSONBin (KORRIGIERTE VERSION)
         async function fetchTimerData() {
-             statusDiv.textContent = 'Lade Timer...';
-             errorStatusDiv.textContent = '';
-             // Prüfe ob Access Key Platzhalter ist
-             if (!JSONBIN_ACCESS_KEY || JSONBIN_ACCESS_KEY === 'SETZE_ACCESS') { // <--- Check auf neuen Platzhalter
-                 errorStatusDiv.textContent = 'Fehler: JSONBin Access Key nicht konfiguriert (Platzhalter SETZE_ACCESS gefunden)!';
-                 console.error('Fehler: JSONBin Access Key nicht konfiguriert (Platzhalter SETZE_ACCESS gefunden)!');
-                 startTimerVisuals(0); // Timer auf 0 setzen
-                 statusDiv.textContent = '';
-                 return; // Abbrechen, wenn Key fehlt
-             }
+            statusDiv.textContent = 'Lade Timer...';
+            errorStatusDiv.textContent = '';
+            // Prüfe ob Access Key Platzhalter ist
+            if (!JSONBIN_ACCESS_KEY || JSONBIN_ACCESS_KEY === 'SETZE_ACCESS') {
+                errorStatusDiv.textContent = 'Fehler: JSONBin Access Key nicht konfiguriert (Platzhalter SETZE_ACCESS gefunden)!';
+                console.error('Fehler: JSONBin Access Key nicht konfiguriert (Platzhalter SETZE_ACCESS gefunden)!');
+                startTimerVisuals(0);
+                statusDiv.textContent = '';
+                return;
+            }
             try {
                 const response = await fetch(BIN_URL_LATEST, {
                     method: 'GET',
                     headers: {
-                         'X-Access-Key': JSONBIN_ACCESS_KEY // Access Key für's Lesen verwenden
+                        'X-Access-Key': JSONBIN_ACCESS_KEY
                     }
                 });
                 if (!response.ok) {
-                     let errorBody = '';
-                     try { errorBody = await response.text(); } catch(e) {}
+                    let errorBody = '';
+                    try { errorBody = await response.text(); } catch (e) {}
                     throw new Error(`HTTP Fehler: ${response.status} - ${response.statusText}. Body: ${errorBody}`);
                 }
                 const data = await response.json();
-                if (data && data.record && typeof data.record.endTimestamp === 'number') {
-                    startTimerVisuals(data.record.endTimestamp);
+                // Optional: Behalte dies zum Debuggen, wenn du willst
+                console.log("Received data structure from JSONBin:", JSON.stringify(data, null, 2));
+
+                // --- KORRIGIERTE PRÜFUNG ---
+                // Prüfe die verschachtelte Struktur: data -> record -> record -> endTimestamp
+                if (data && data.record && data.record.record && typeof data.record.record.endTimestamp === 'number') {
+                    // Greife korrekt auf den verschachtelten Wert zu
+                    startTimerVisuals(data.record.record.endTimestamp);
                     statusDiv.textContent = '';
                 } else {
+                    // Datenstruktur ist nicht { record: { record: { endTimestamp: number } } }
                     startTimerVisuals(0);
-                    errorStatusDiv.textContent = 'Ungültige Timer-Daten empfangen. Setze auf 0.';
-                    console.error("Unerwartete Datenstruktur:", data);
+                    // Angepasste Fehlermeldung
+                    errorStatusDiv.textContent = 'Timer-Daten empfangen, aber Struktur nicht wie erwartet ({record:{record:{endTimestamp:number}}}). Setze auf 0.';
+                    // Logge die unerwartete Struktur
+                    console.error("Unerwartete oder ungültige Datenstruktur:", data);
                     statusDiv.textContent = '';
                 }
+                // --- ENDE KORRIGIERTE PRÜFUNG ---
+
             } catch (error) {
                 console.error('Fehler beim Abrufen des Timers:', error);
                 errorStatusDiv.textContent = `Fehler beim Laden: ${error.message}. Zeige 0m 0s.`;
@@ -217,10 +228,11 @@
             }
         }
 
+
         // Funktion zum Schreiben des Timers nach JSONBin
         async function updateJsonBin(newEndTimestamp) {
              // Prüfe ob Master Key Platzhalter ist
-             if (!JSONBIN_API_KEY || JSONBIN_API_KEY === 'E_MASTER') { // <--- Check auf neuen Platzhalter
+             if (!JSONBIN_API_KEY || JSONBIN_API_KEY === 'SETZTE_MASTER') {
                 errorStatusDiv.textContent = 'Fehler: JSONBin Master Key nicht konfiguriert (Platzhalter SETZTE_MASTER gefunden)!';
                 console.error('Fehler: JSONBin Master Key nicht konfiguriert (Platzhalter SETZTE_MASTER gefunden)!');
                 alert('Fehler: JSONBin Master Key nicht konfiguriert (Platzhalter SETZTE_MASTER gefunden)!');
@@ -229,6 +241,7 @@
              statusDiv.textContent = 'Speichere Timer...';
              errorStatusDiv.textContent = '';
              const timestampToSend = typeof newEndTimestamp === 'number' ? newEndTimestamp : 0;
+             // Wichtig: Wir senden weiterhin die einfache Struktur, die wir speichern wollen
              const dataToSend = { record: { endTimestamp: timestampToSend } };
 
             try {
@@ -238,6 +251,7 @@
                         'Content-Type': 'application/json',
                         'X-Master-Key': JSONBIN_API_KEY // ACHTUNG: Unsicher!
                     },
+                    // JSONBin PUT erwartet den *gesamten* neuen Inhalt des Bins
                     body: JSON.stringify(dataToSend)
                 });
                 if (!response.ok) {
@@ -249,7 +263,8 @@
                     throw new Error(`HTTP Fehler: ${response.status} - ${response.statusText}. Body: ${errorBody}`);
                 }
                 statusDiv.textContent = 'Timer erfolgreich gespeichert!';
-                await fetchTimerData(); // Neu laden zur Sicherheit
+                // Nach erfolgreichem Speichern neu laden (die korrigierte fetch Funktion wird verwendet)
+                await fetchTimerData();
                 return true;
             } catch (error) {
                 console.error('Fehler beim Speichern des Timers:', error);
@@ -295,6 +310,7 @@
             errorStatusDiv.textContent = '';
             const now = Date.now();
             const newEndTimestamp = now + minutes * 60 * 1000;
+            // updateJsonBin speichert { record: { endTimestamp: ... } }
             const success = await updateJsonBin(newEndTimestamp);
              if (success) {
                  minutesInput.value = '';
@@ -304,6 +320,7 @@
         // Clear Timer Button
         clearTimerBtn.addEventListener('click', async () => {
              errorStatusDiv.textContent = '';
+             // updateJsonBin speichert { record: { endTimestamp: 0 } }
             await updateJsonBin(0);
         });
 
@@ -318,26 +335,34 @@
                  return;
               }
             try {
-                 const response = await fetch(BIN_URL_LATEST, { headers: {'X-Access-Key': JSONBIN_ACCESS_KEY }});
-                 if (!response.ok) throw new Error(`HTTP Error ${response.status}`);
-                 const data = await response.json();
-                 let currentEnd = 0;
-                 if (data && data.record && typeof data.record.endTimestamp === 'number') {
-                     currentEnd = data.record.endTimestamp;
+                 // fetchTimerData wird hier *nicht* direkt gerufen, wir lesen manuell
+                 // Aber die korrigierte fetchTimerData Logik muss hier quasi nachgebaut werden ODER wir rufen sie auf
+                 // Einfacher: fetchTimerData aufrufen um currentEndTimestamp zu aktualisieren
+                 await fetchTimerData(); // Stellt sicher, dass currentEndTimestamp aktuell ist
+
+                 // Prüfen ob Laden erfolgreich war (errorStatusDiv wäre gesetzt wenn nicht)
+                 if(errorStatusDiv.textContent){
+                      // Fehler beim Laden, breche ab
+                      statusDiv.textContent = ''; // 'Füge hinzu' Meldung entfernen
+                      return;
                  }
+
                  const now = Date.now();
-                 const baseTimestamp = Math.max(now, currentEnd);
+                 // Verwende den globalen currentEndTimestamp, der von fetchTimerData gesetzt wurde
+                 const baseTimestamp = Math.max(now, currentEndTimestamp);
                  const newEndTimestamp = baseTimestamp + 5 * 60 * 1000;
-                 await updateJsonBin(newEndTimestamp); // Zum Speichern wird Master Key geprüft
-             } catch (error) {
-                 console.error("Fehler beim Holen des Timers für +5 Min:", error);
+                 // updateJsonBin speichert { record: { endTimestamp: ... } }
+                 await updateJsonBin(newEndTimestamp);
+
+             } catch (error) { // Dieser Catch ist jetzt unwahrscheinlicher, da fetchTimerData Fehler fängt
+                 console.error("Fehler bei +5 Min Logik:", error);
                  errorStatusDiv.textContent = `Fehler beim +5 Min: ${error.message}`;
                  statusDiv.textContent = '';
              }
         });
 
         // --- Initialisierung ---
-        fetchTimerData(); // Timer beim Laden der Seite holen
+        fetchTimerData(); // Timer beim Laden der Seite holen (verwendet die korrigierte Funktion)
 
     </script>
 
