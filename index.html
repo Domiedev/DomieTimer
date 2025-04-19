@@ -1,159 +1,134 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Timer Setup</title>
-    <style>
-        body {
-            background-color: #000000;
-            color: white;
-            font-family: Arial, sans-serif;
-        }
-        #timerDisplay {
-            font-size: 2em;
-            margin: 20px;
-        }
-        .hidden {
-            display: none;
-        }
-        #passwordField {
-            margin: 20px;
-            padding: 10px;
-            background-color: #444;
-            border: 1px solid #888;
-            color: white;
-            font-size: 1.2em;
-        }
-        button {
-            padding: 10px;
-            background-color: #444;
-            color: white;
-            border: 1px solid #888;
-            cursor: pointer;
-        }
-        button:hover {
-            background-color: #555;
-        }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Domie Timer</title>
+  <style>
+    body {
+      background-color: #000;
+      color: white;
+      font-family: Arial, sans-serif;
+    }
+    #timerDisplay {
+      font-size: 2em;
+      margin: 20px;
+    }
+    .hidden {
+      display: none;
+    }
+    #passwordField {
+      margin: 20px;
+      padding: 10px;
+      background-color: #444;
+      border: 1px solid #888;
+      color: white;
+      font-size: 1.2em;
+    }
+    button {
+      padding: 10px;
+      background-color: #444;
+      color: white;
+      border: 1px solid #888;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #555;
+    }
+  </style>
 </head>
 <body>
 
 <h1>How Long Does Domie Need?</h1>
 
-<!-- Display the timer for everyone -->
 <div id="publicTimerDisplay">
-    <div id="timerDisplay">Loading Timer...</div>
+  <div id="timerDisplay">Loading Timer...</div>
 </div>
 
 <div id="passwordSection">
-    <input type="password" id="passwordField" placeholder="Enter password">
-    <button id="submitPasswordBtn">Submit</button>
+  <input type="password" id="passwordField" placeholder="Enter password" />
+  <button id="submitPasswordBtn">Submit</button>
 </div>
 
 <div id="timerSection" class="hidden">
-    <label for="timerInput">Enter timer (Minutes only):</label>
-    <input type="number" id="timerInput" placeholder="Minutes" min="1">
-    <button id="setTimerBtn">Set Timer</button>
-    <button onclick="addFiveMinutes()">Add 5 Minutes</button>
+  <label for="timerInput">Enter timer (Minutes only):</label>
+  <input type="number" id="timerInput" placeholder="Minutes" min="1" />
+  <button id="setTimerBtn">Set Timer</button>
+  <button onclick="addFiveMinutes()">Add 5 Minutes</button>
 </div>
 
-<script type="module">
-    // Import the functions you need from the SDKs
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js";
-    import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/11.6.0/firebase-database.js";
+<script>
+  const BIN_URL = 'https://api.jsonbin.io/v3/b/680411228561e97a50033b62';
+  const BIN_LATEST = BIN_URL + '/latest';
+  const MASTER_KEY = '$2a$10$eO4Awo0t5OAD8xVHkj31Ou2cuntC2OeoFX7vIPL6APc9lUZKAgeBW'; // Replace with your API key (keep secret!)
+  const correctPassword = "your_password_here"; // Set your own password
 
-    // Your web app's Firebase configuration
-    const firebaseConfig = {
-        apiKey: "AIzaSyBoZI8iWOG7nFXM5vhUdJe1jMPbiBAJvVM",
-        authDomain: "timer-23c1f.firebaseapp.com",
-        databaseURL: "https://timer-23c1f-default-rtdb.europe-west1.firebasedatabase.app",
-        projectId: "timer-23c1f",
-        storageBucket: "timer-23c1f.firebasestorage.app",
-        messagingSenderId: "239286947747",
-        appId: "1:239286947747:web:ce78957836edcd2a7b5416"
-    };
+  async function fetchTimer() {
+    const res = await fetch(BIN_LATEST);
+    const data = await res.json();
+    return data.record.timer; // returns time in milliseconds
+  }
 
-    // Initialize Firebase
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-
-    // Password and correct password
-    const correctPassword = "your_password_here"; // Replace with your actual password
-    const timerRef = ref(db, 'timer'); // Firebase reference for the timer value
-
-    // Show timer for everyone
-    function showTimer() {
-        get(timerRef).then((snapshot) => {
-            if (snapshot.exists()) {
-                const timerValue = snapshot.val();
-                document.getElementById("timerDisplay").innerText = formatTime(timerValue);
-            } else {
-                console.log("No data available");
-            }
-        }).catch((error) => {
-            console.error(error);
-        });
-    }
-
-    // Format time in minutes and seconds
-    function formatTime(timeInMillis) {
-        const minutes = Math.floor(timeInMillis / 60000);
-        const seconds = Math.floor((timeInMillis % 60000) / 1000);
-        return `${minutes}m ${seconds}s`;
-    }
-
-    // Set timer
-    function setTimer() {
-        const timerInput = document.getElementById("timerInput").value;
-        if (timerInput) {
-            const timerInMillis = timerInput * 60000; // Convert minutes to milliseconds
-            set(timerRef, timerInMillis); // Update the timer in Firebase
-            showTimer(); // Update the displayed timer
-        }
-    }
-
-    // Add 5 minutes to the current timer
-    function addFiveMinutes() {
-        get(timerRef).then((snapshot) => {
-            if (snapshot.exists()) {
-                const currentTimer = snapshot.val();
-                const updatedTimer = currentTimer + 5 * 60000; // Add 5 minutes in milliseconds
-                set(timerRef, updatedTimer); // Update the timer in Firebase
-            } else {
-                console.log("No data available");
-            }
-        }).catch((error) => {
-            console.error(error);
-        });
-    }
-
-    // Handle password submission
-    document.getElementById("submitPasswordBtn").addEventListener("click", () => {
-        const password = document.getElementById("passwordField").value;
-        if (password === correctPassword) {
-            document.getElementById("passwordSection").classList.add("hidden");
-            document.getElementById("timerSection").classList.remove("hidden");
-        } else {
-            alert("Incorrect password!");
-        }
+  async function updateTimer(newTime) {
+    const updatedBody = JSON.stringify({ timer: newTime });
+    await fetch(BIN_URL, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Master-Key': MASTER_KEY
+      },
+      body: updatedBody
     });
+  }
 
-    // Real-time listener for timer updates (this ensures synchronization across devices)
-    onValue(timerRef, (snapshot) => {
-        if (snapshot.exists()) {
-            const timerValue = snapshot.val();
-            document.getElementById("timerDisplay").innerText = formatTime(timerValue);
-        } else {
-            console.log("No data available");
-        }
-    });
+  function formatTime(timeInMillis) {
+    const minutes = Math.floor(timeInMillis / 60000);
+    const seconds = Math.floor((timeInMillis % 60000) / 1000);
+    return `${minutes}m ${seconds}s`;
+  }
 
-    // Add event listener for Set Timer button
-    document.getElementById("setTimerBtn").addEventListener("click", setTimer);
+  async function showTimer() {
+    try {
+      const time = await fetchTimer();
+      document.getElementById("timerDisplay").innerText = formatTime(time);
+    } catch (err) {
+      console.error("Failed to fetch timer:", err);
+    }
+  }
 
-    // Show the timer initially
-    showTimer();
+  async function setTimer() {
+    const minutes = parseInt(document.getElementById("timerInput").value);
+    if (!isNaN(minutes)) {
+      const millis = minutes * 60000;
+      await updateTimer(millis);
+      showTimer();
+    }
+  }
+
+  async function addFiveMinutes() {
+    try {
+      const current = await fetchTimer();
+      const updated = current + 5 * 60000;
+      await updateTimer(updated);
+      showTimer();
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  document.getElementById("submitPasswordBtn").addEventListener("click", () => {
+    const password = document.getElementById("passwordField").value;
+    if (password === correctPassword) {
+      document.getElementById("passwordSection").classList.add("hidden");
+      document.getElementById("timerSection").classList.remove("hidden");
+    } else {
+      alert("Incorrect password!");
+    }
+  });
+
+  document.getElementById("setTimerBtn").addEventListener("click", setTimer);
+
+  showTimer(); // Run on load
 </script>
 
 </body>
