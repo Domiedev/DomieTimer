@@ -35,11 +35,15 @@
         button:hover {
             background-color: #555;
         }
+        .button-container {
+            display: flex;
+            gap: 10px;
+        }
     </style>
 </head>
 <body>
 
-<h1>How Long Does Domie Need?</h1>
+<h1>How Long Does Domie Need? CIRCA:</h1>
 
 <!-- Display the timer for everyone -->
 <div id="publicTimerDisplay">
@@ -55,7 +59,12 @@
     <label for="timerInput">Enter timer (Minutes only):</label>
     <input type="number" id="timerInput" placeholder="Minutes" min="1">
     <button id="setTimerBtn">Set Timer</button>
-    <button onclick="addFiveMinutes()">Add 5 Minutes</button>
+    
+    <!-- Buttons container -->
+    <div class="button-container">
+        <button onclick="addFiveMinutes()">Add 5 Minutes</button>
+        <button onclick="resetTimer()">Reset Timer</button>
+    </div>
 </div>
 
 <script>
@@ -151,6 +160,14 @@
         timerValue += 5 * 60; // Add 5 minutes (in seconds)
         updateTimerInJsonBin();
         updateTimerDisplay();
+    }
+
+    // Reset the timer to 0 minutes
+    function resetTimer() {
+        timerValue = 0; // Reset to 0 seconds
+        updateTimerInJsonBin();
+        updateTimerDisplay();
+        clearInterval(timerInterval); // Stop the countdown if it's running
     }
 
     // Handle password submission
