@@ -5,23 +5,43 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Domie's Timer</title>
     <style>
-        /* CSS wie in der letzten Version */
+        /* CSS unverändert bis auf #passwordSection */
         body { font-family: sans-serif; display: flex; justify-content: space-around; align-items: center; min-height: 100vh; padding: 20px; background-color: black; color: #eee; box-sizing: border-box; overflow-x: hidden; }
-        .side-gif { width: 350px; height: auto; flex-shrink: 0; }
+        .side-gif { width: 350px; height: auto; flex-shrink: 0; cursor: pointer; /* Zeiger ändern, um Klickbarkeit anzuzeigen */ }
         .main-content { display: flex; flex-direction: column; align-items: center; text-align: center; margin: 0 20px; }
         h1 { color: #98FB98; margin-bottom: 10px; }
         #timerDisplay { font-size: 5em; margin-bottom: 30px; color: #98FB98; }
         .admin-panel { margin-top: 20px; padding: 20px; border-radius: 8px; background-color: black; display: flex; flex-direction: column; gap: 15px; align-items: center; width: auto; min-width: 280px; box-sizing: border-box; }
         .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border-width: 0; }
         .admin-panel label:not(.sr-only) { padding: 8px; font-size: 1em; margin: 2px; color: #98FB98; width: 60px; display: inline-block; text-align: right; margin-right: 5px; }
-        .password-section { display: flex; align-items: center; justify-content: center; gap: 5px; width: 100%; }
-        .password-section input#password { padding: 8px; font-size: 1em; background-color: #333; color: #98FB98; border: 1px solid #555; border-radius: 4px; box-sizing: border-box; width: 100px; margin: 0; }
+
+        /* Passwort-Sektion: Standardmäßig versteckt */
+        #passwordSection {
+            display: none; /* Versteckt die Sektion initial */
+            /* Behält die Flexbox-Styles für wenn es sichtbar wird */
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            width: 100%;
+        }
+         /* Styling für das Input-Feld innerhalb der Sektion */
+        #passwordSection input#password {
+             padding: 8px; font-size: 1em; background-color: #333; color: #98FB98; border: 1px solid #555; border-radius: 4px; box-sizing: border-box; width: 100px; margin: 0;
+        }
+        /* Styling für den Button innerhalb der Sektion */
+        #passwordSection button#loginBtn {
+            padding: 8px 15px; font-size: 0.9em; margin: 0; /* Angepasst von .admin-panel button */
+            background-color: #98FB98; color: black; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s ease;
+        }
+         #passwordSection button#loginBtn:hover:not(:disabled) { background-color: #7edc7e; }
+         #passwordSection button#loginBtn:disabled { background-color: #555; color: #aaa; cursor: not-allowed; }
+
+
         .admin-panel input[type="number"] { padding: 8px; font-size: 1em; margin: 2px 5px; background-color: #333; color: #98FB98; border: 1px solid #555; border-radius: 4px; box-sizing: border-box; width: 80px; text-align: center; }
         #adminControls { display: flex; flex-direction: column; gap: 15px; align-items: center; width: 100%; }
-        .admin-panel button { padding: 10px 15px; font-size: 1em; margin: 2px; background-color: #98FB98; color: black; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s ease; }
-        #loginBtn { padding: 8px 15px; font-size: 0.9em; }
-        .admin-panel button:hover:not(:disabled) { background-color: #7edc7e; }
-        .admin-panel button:disabled { background-color: #555; color: #aaa; cursor: not-allowed; }
+        .admin-panel button:not(#loginBtn) { padding: 10px 15px; font-size: 1em; margin: 2px; background-color: #98FB98; color: black; border: none; border-radius: 5px; cursor: pointer; transition: background-color 0.2s ease; } /* Default für andere Buttons */
+        .admin-panel button:not(#loginBtn):hover:not(:disabled) { background-color: #7edc7e; }
+        .admin-panel button:not(#loginBtn):disabled { background-color: #555; color: #aaa; cursor: not-allowed; }
         .button-group { display: flex; gap: 10px; justify-content: center; width: 100%; }
         #status { margin-top: 15px; font-style: italic; color: lightgreen; min-height: 1.2em; }
         #errorStatus { margin-top: 5px; font-style: italic; color: lightcoral; min-height: 1.2em; }
@@ -29,12 +49,14 @@
 </head>
 <body>
 
-    <img src="mrbean.gif" alt="decorative gif" class="side-gif"> <div class="main-content">
+    <img src="mrbean.gif" alt="decorative gif" class="side-gif" id="gif-left">
+
+    <div class="main-content">
         <h1>How long does domie need?</h1>
         <div id="timerDisplay">0m 0s</div>
 
         <div class="admin-panel">
-            <div class="password-section">
+            <div class="password-section" id="passwordSection">
                  <label for="password" class="sr-only">Passwort:</label>
                  <input type="password" id="password" placeholder="Passwort">
                  <button id="loginBtn">ENTER</button>
@@ -57,26 +79,21 @@
         </div>
     </div>
 
-    <img src="mrbean.gif" alt="decorative gif" class="side-gif"> <script>
+    <img src="mrbean.gif" alt="decorative gif" class="side-gif" id="gif-right">
+
+
+    <script>
         // --- Konfiguration ---
-        const JSONBIN_ID = '680411228561e97a50033b62'; // Deine Bin ID
-
-        // !!! KEIN ADMIN PASSWORT MEHR HIER !!!
-        // !!! KEIN MASTER KEY MEHR HIER !!!
-
-        // !!! ERSETZE 'SETZE_ACCESS' MIT DEINEM ECHTEN (!) JSONBIN ACCESS KEY !!!
-        // Wird weiterhin für das clientseitige Lesen benötigt.
-        const JSONBIN_ACCESS_KEY = '$2a$10$aQg8aZf3yeI12bivdcAi7Odw6uen8Ctp5ZJ4H/u6pAhqjgCeH61k6'; // <--- PASTE YOUR REAL ACCESS KEY HERE
-
-        // !!! ERSETZE DIES MIT DEINER ECHTEN WORKER URL (endet auf .workers.dev) !!!
-        const WORKER_URL = 'https://timer-api.4rthur2110fk.workers.dev'; // <--- DEINE WORKER URL HIER
+        const JSONBIN_ID = '680411228561e97a50033b62';
+        const JSONBIN_ACCESS_KEY = '$2a$10$aQg8aZf3yeI12bivdcAi7Odw6uen8Ctp5ZJ4H/u6pAhqjgCeH61k6'; // <-- ECHTEN ACCESS KEY EINFÜGEN
+        const WORKER_URL = 'https://timer-api.4rthur2110fk.workers.dev'; // <-- ECHTE WORKER URL EINFÜGEN
         // --- End Configuration ---
 
 
         const BIN_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_ID}`;
         const BIN_URL_LATEST = `${BIN_URL}/latest`;
 
-        // DOM Elemente (unverändert)
+        // DOM Elemente
         const timerDisplay = document.getElementById('timerDisplay');
         const passwordInput = document.getElementById('password');
         const loginBtn = document.getElementById('loginBtn');
@@ -87,112 +104,61 @@
         const clearTimerBtn = document.getElementById('clearTimerBtn');
         const statusDiv = document.getElementById('status');
         const errorStatusDiv = document.getElementById('errorStatus');
+        // NEUE DOM Elemente für die neue Funktion:
+        const passwordSectionDiv = document.getElementById('passwordSection');
+        const gifLeft = document.getElementById('gif-left');
+        const gifRight = document.getElementById('gif-right');
+
 
         let timerInterval = null;
         let currentEndTimestamp = 0;
 
-        // Function to format time (Vollständig)
-        function formatTime(ms) {
-            if (ms <= 0) return '0m 0s';
-            const totalSeconds = Math.max(0, Math.floor(ms / 1000));
-            const minutes = Math.floor(totalSeconds / 60);
-            const seconds = totalSeconds % 60;
-            return `${minutes}m ${seconds}s`;
-        }
+        // formatTime, updateTimer, startTimerVisuals (Vollständig)
+        function formatTime(ms) { if (ms <= 0) return '0m 0s'; const tS = Math.max(0, Math.floor(ms / 1000)); const m = Math.floor(tS / 60); const s = tS % 60; return `${m}m ${s}s`; }
+        function updateTimer() { const n = Date.now(); const rM = Math.max(0, currentEndTimestamp - n); timerDisplay.textContent = formatTime(rM); if (rM <= 0) { clearInterval(timerInterval); timerInterval = null; timerDisplay.textContent = '0m 0s'; } }
+        function startTimerVisuals(endTs) { currentEndTimestamp = typeof endTs === 'number' ? endTs : 0; console.log(`Setting currentEndTimestamp to: ${currentEndTimestamp}`); clearInterval(timerInterval); timerInterval = null; const rM = Math.max(0, currentEndTimestamp - Date.now()); if (rM > 0) { updateTimer(); timerInterval = setInterval(updateTimer, 1000); } else { timerDisplay.textContent = '0m 0s'; } }
 
-        // Function to update the display (Vollständig)
-        function updateTimer() {
-            const now = Date.now();
-            const remainingMs = Math.max(0, currentEndTimestamp - now);
-            timerDisplay.textContent = formatTime(remainingMs);
-            if (remainingMs <= 0) {
-                clearInterval(timerInterval);
-                timerInterval = null;
-                timerDisplay.textContent = '0m 0s';
-            }
-        }
+       // fetchTimerData (Vollständig)
+        async function fetchTimerData(isPolling = false) { if (!isPolling) { statusDiv.textContent = 'Lade Timer...'; errorStatusDiv.textContent = ''; } else { errorStatusDiv.textContent = ''; } if (!JSONBIN_ACCESS_KEY || JSONBIN_ACCESS_KEY === 'SETZE_ACCESS') { errorStatusDiv.textContent = 'Fehler: JSONBin Access Key nicht konfiguriert!'; console.error('Fehler: JSONBin Access Key nicht konfiguriert!'); if(!isPolling) startTimerVisuals(0); statusDiv.textContent = ''; return; } try { const response = await fetch(BIN_URL_LATEST, { method: 'GET', headers: { 'X-Access-Key': JSONBIN_ACCESS_KEY, 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } }); if (!response.ok && response.status !== 304) { let errorBody = ''; try { errorBody = await response.text(); } catch (e) {} if (!isPolling) { console.error(`HTTP Fehler beim Laden: ${response.status} - ${response.statusText}. Body: ${errorBody}`); errorStatusDiv.textContent = `Fehler ${response.status} beim Laden. Timer läuft evtl. weiter.`; startTimerVisuals(0); } else { console.warn(`Polling HTTP Fehler: ${response.status}`); } statusDiv.textContent = ''; return; } if (response.status === 200) { const data = await response.json(); let fetchedEndTimestamp = -1; if (data && data.record && data.record.record && typeof data.record.record.endTimestamp === 'number') { fetchedEndTimestamp = data.record.record.endTimestamp; } else { if (!isPolling) { errorStatusDiv.textContent = 'Timer-Daten empfangen, aber Struktur nicht wie erwartet. Setze auf 0.'; console.error("Unerwartete oder ungültige Datenstruktur:", data); startTimerVisuals(0); } else { console.warn("Polling: Received unexpected data structure:", data); } statusDiv.textContent = ''; return; } if (fetchedEndTimestamp !== currentEndTimestamp) { console.log(`Timestamp changed via fetch. Old: ${currentEndTimestamp}, New: ${fetchedEndTimestamp}. Restarting visuals.`); startTimerVisuals(fetchedEndTimestamp); } else { /* if(isPolling) console.log("Polling: Timestamp unchanged."); */ } if (!isPolling) { statusDiv.textContent = ''; } } else if (response.status === 304) { /* if(isPolling) console.log("Polling: Data not modified (304)."); */ } } catch (error) { if (!isPolling) { console.error('Fehler beim Abrufen des Timers:', error); errorStatusDiv.textContent = `Fehler beim Laden: ${error.message}. Zeige 0m 0s.`; startTimerVisuals(0); statusDiv.textContent = ''; } else { console.warn("Polling: Network or other error fetching timer:", error.message); } } }
 
-        // Starts the visual timer (Vollständig)
-        function startTimerVisuals(endTs) {
-            currentEndTimestamp = typeof endTs === 'number' ? endTs : 0;
-            console.log(`Setting currentEndTimestamp to: ${currentEndTimestamp}`); // Keep for debug
-
-            clearInterval(timerInterval);
-            timerInterval = null;
-
-            const remainingMs = Math.max(0, currentEndTimestamp - Date.now());
-            if (remainingMs > 0) {
-                updateTimer();
-                timerInterval = setInterval(updateTimer, 1000);
-            } else {
-                timerDisplay.textContent = '0m 0s';
-            }
-        }
-
-       // fetchTimerData (Vollständig, liest direkt von JSONBin mit Access Key)
-        async function fetchTimerData(isPolling = false) {
-            if (!isPolling) { statusDiv.textContent = 'Lade Timer...'; errorStatusDiv.textContent = ''; } else { errorStatusDiv.textContent = ''; }
-            if (!JSONBIN_ACCESS_KEY || JSONBIN_ACCESS_KEY === 'SETZE_ACCESS') { errorStatusDiv.textContent = 'Fehler: JSONBin Access Key nicht konfiguriert!'; console.error('Fehler: JSONBin Access Key nicht konfiguriert!'); if(!isPolling) startTimerVisuals(0); statusDiv.textContent = ''; return; }
-            try { const response = await fetch(BIN_URL_LATEST, { method: 'GET', headers: { 'X-Access-Key': JSONBIN_ACCESS_KEY, 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' } }); if (!response.ok && response.status !== 304) { let errorBody = ''; try { errorBody = await response.text(); } catch (e) {} if (!isPolling) { console.error(`HTTP Fehler beim Laden: ${response.status} - ${response.statusText}. Body: ${errorBody}`); errorStatusDiv.textContent = `Fehler ${response.status} beim Laden. Timer läuft evtl. weiter.`; startTimerVisuals(0); } else { console.warn(`Polling HTTP Fehler: ${response.status}`); } statusDiv.textContent = ''; return; } if (response.status === 200) { const data = await response.json(); let fetchedEndTimestamp = -1; if (data && data.record && data.record.record && typeof data.record.record.endTimestamp === 'number') { fetchedEndTimestamp = data.record.record.endTimestamp; } else { if (!isPolling) { errorStatusDiv.textContent = 'Timer-Daten empfangen, aber Struktur nicht wie erwartet. Setze auf 0.'; console.error("Unerwartete oder ungültige Datenstruktur:", data); startTimerVisuals(0); } else { console.warn("Polling: Received unexpected data structure:", data); } statusDiv.textContent = ''; return; } if (fetchedEndTimestamp !== currentEndTimestamp) { console.log(`Timestamp changed via fetch. Old: ${currentEndTimestamp}, New: ${fetchedEndTimestamp}. Restarting visuals.`); startTimerVisuals(fetchedEndTimestamp); } else { /* if(isPolling) console.log("Polling: Timestamp unchanged."); */ } if (!isPolling) { statusDiv.textContent = ''; } } else if (response.status === 304) { /* if(isPolling) console.log("Polling: Data not modified (304)."); */ } } catch (error) { if (!isPolling) { console.error('Fehler beim Abrufen des Timers:', error); errorStatusDiv.textContent = `Fehler beim Laden: ${error.message}. Zeige 0m 0s.`; startTimerVisuals(0); statusDiv.textContent = ''; } else { console.warn("Polling: Network or other error fetching timer:", error.message); } } }
-
-        // updateJsonBin (ANGEPASST: Sendet 'action':'update' an Worker)
-        async function updateJsonBin(newEndTimestamp) {
-             if (WORKER_URL.includes('DEIN_WORKER_NAME') || !WORKER_URL.endsWith('.workers.dev')) { errorStatusDiv.textContent = 'Fehler: Worker URL nicht korrekt im Frontend Code konfiguriert!'; console.error('Fehler: Worker URL nicht konfiguriert oder keine .workers.dev URL!'); statusDiv.textContent = ''; alert('Fehler: Die Worker URL wurde im Code noch nicht korrekt ersetzt! Sie sollte auf .workers.dev enden.'); return false; }
-            statusDiv.textContent = 'Speichere Timer...'; errorStatusDiv.textContent = '';
-            const timestampToSend = typeof newEndTimestamp === 'number' ? newEndTimestamp : 0;
-            // Datenobjekt enthält jetzt die Aktion 'update'
-            const dataForWorker = { action: 'update', endTimestamp: timestampToSend };
-            try {
-                const response = await fetch(WORKER_URL, {
-                    method: 'POST', headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dataForWorker)
-                });
-                const result = await response.json();
-                if (!response.ok || !result.success) { throw new Error(result.message || `Worker Fehler ${response.status}`); }
-                statusDiv.textContent = result.message || 'Timer erfolgreich gespeichert!';
-                await fetchTimerData(false); return true; // Daten neu laden nach Erfolg
-            } catch (error) {
-                console.error('Fehler beim Speichern über Worker:', error); errorStatusDiv.textContent = `Fehler beim Speichern: ${error.message}`; statusDiv.textContent = ''; return false;
-            } finally { setTimeout(() => { if (statusDiv.textContent.includes('erfolgreich')) { statusDiv.textContent = ''; } }, 3000); }
-        }
+        // updateJsonBin (Ruft Worker auf)
+        async function updateJsonBin(newEndTimestamp) { if (WORKER_URL.includes('DEIN_WORKER_NAME') || !WORKER_URL.endsWith('.workers.dev')) { errorStatusDiv.textContent = 'Fehler: Worker URL nicht korrekt konfiguriert!'; console.error('Fehler: Worker URL nicht konfiguriert!'); alert('Fehler: Worker URL nicht korrekt!'); return false; } statusDiv.textContent = 'Speichere Timer...'; errorStatusDiv.textContent = ''; const timestampToSend = typeof newEndTimestamp === 'number' ? newEndTimestamp : 0; const dataForWorker = { action: 'update', endTimestamp: timestampToSend }; try { const response = await fetch(WORKER_URL, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(dataForWorker) }); const result = await response.json(); if (!response.ok || !result.success) { throw new Error(result.message || `Worker Fehler ${response.status}`); } statusDiv.textContent = result.message || 'Timer erfolgreich gespeichert!'; await fetchTimerData(false); return true; } catch (error) { console.error('Fehler beim Speichern über Worker:', error); errorStatusDiv.textContent = `Fehler beim Speichern: ${error.message}`; statusDiv.textContent = ''; return false; } finally { setTimeout(() => { if (statusDiv.textContent.includes('erfolgreich')) { statusDiv.textContent = ''; } }, 3000); } }
 
         // --- Event Listeners ---
 
-        // Login Button (ANGEPASST: Ruft Worker zur Passwortprüfung auf)
+        // Login Button (Ruft Worker zur Passwortprüfung auf)
         loginBtn.addEventListener('click', async () => {
             const enteredPassword = passwordInput.value;
             if (!enteredPassword) { errorStatusDiv.textContent = 'Bitte Passwort eingeben.'; return; }
-             if (WORKER_URL.includes('DEIN_WORKER_NAME') || !WORKER_URL.endsWith('.workers.dev')) { errorStatusDiv.textContent = 'Fehler: Worker URL nicht korrekt im Frontend Code konfiguriert!'; console.error('Fehler: Worker URL nicht konfiguriert oder keine .workers.dev URL!'); statusDiv.textContent = ''; alert('Fehler: Die Worker URL wurde im Code noch nicht korrekt ersetzt! Sie sollte auf .workers.dev enden.'); return; }
+             if (WORKER_URL.includes('DEIN_WORKER_NAME') || !WORKER_URL.endsWith('.workers.dev')) { errorStatusDiv.textContent = 'Fehler: Worker URL nicht korrekt konfiguriert!'; alert('Fehler: Worker URL nicht korrekt!'); return; }
 
             statusDiv.textContent = 'Prüfe Passwort...'; errorStatusDiv.textContent = '';
-            loginBtn.disabled = true; // Deaktivieren während Prüfung
+            loginBtn.disabled = true;
 
             try {
                 const response = await fetch(WORKER_URL, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'login', password: enteredPassword }) // Aktion 'login' senden
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'login', password: enteredPassword })
                 });
-
-                // Versuche immer JSON zu parsen, auch bei Fehlern vom Worker
                 const result = await response.json();
 
-                if (response.ok && result.success) { // Prüfe auf Erfolg vom Worker
+                if (response.ok && result.success) {
                     adminControlsDiv.style.display = 'flex';
                     passwordInput.disabled = true;
-                    loginBtn.disabled = true; // Bleibt deaktiviert nach erfolgreichem Login
+                    loginBtn.disabled = true;
+                    // Optional: Passwortfeld wieder verstecken nach erfolgreichem Login?
+                    // passwordSectionDiv.style.display = 'none';
                     errorStatusDiv.textContent = '';
                     statusDiv.textContent = 'Angemeldet.';
                     setTimeout(() => { statusDiv.textContent = ''; }, 2000);
                 } else {
-                    // Worker hat Fehler gemeldet oder success war false
                     errorStatusDiv.textContent = result.message || 'Falsches Passwort oder Serverfehler!';
                     passwordInput.value = '';
                     adminControlsDiv.style.display = 'none';
                     statusDiv.textContent = '';
-                    loginBtn.disabled = false; // Wieder aktivieren bei Fehler
+                    loginBtn.disabled = false;
                 }
-            } catch (error) { // Catch für Netzwerkfehler oder wenn .json() fehlschlägt
+            } catch (error) {
                  console.error('Fehler bei Login-Anfrage an Worker:', error);
                  errorStatusDiv.textContent = 'Fehler bei der Anmeldung. Netzwerkproblem oder Worker antwortet nicht korrekt.';
                  statusDiv.textContent = '';
@@ -206,6 +172,25 @@
         clearTimerBtn.addEventListener('click', async () => { errorStatusDiv.textContent = ''; await updateJsonBin(0); });
         // +5 Minutes Button (Ruft fetchTimerData und updateJsonBin auf)
         add5MinBtn.addEventListener('click', async () => { statusDiv.textContent = 'Füge 5 Minuten hinzu...'; errorStatusDiv.textContent = ''; if (!JSONBIN_ACCESS_KEY || JSONBIN_ACCESS_KEY === 'SETZE_ACCESS') { errorStatusDiv.textContent = 'Fehler: Access Key fehlt für +5 Min Funktion.'; statusDiv.textContent = ''; return; } try { await fetchTimerData(false); if(errorStatusDiv.textContent){ statusDiv.textContent = ''; return; } const now = Date.now(); const baseTimestamp = Math.max(now, currentEndTimestamp); const newEndTimestamp = baseTimestamp + 5 * 60 * 1000; await updateJsonBin(newEndTimestamp); } catch (error) { console.error("Fehler bei +5 Min Logik:", error); errorStatusDiv.textContent = `Fehler bei +5 Min: ${error.message}`; statusDiv.textContent = ''; } });
+
+
+        // --- NEU: Event Listener für die GIFs ---
+        function showLoginSection() {
+            if (passwordSectionDiv) {
+                console.log("Showing password section.");
+                passwordSectionDiv.style.display = 'flex'; // Mache die Sektion sichtbar
+                // Optional: Fokussiere das Passwortfeld für bessere UX
+                // passwordInput.focus();
+            }
+        }
+
+        if (gifLeft) {
+            gifLeft.addEventListener('click', showLoginSection);
+        }
+        if (gifRight) {
+            gifRight.addEventListener('click', showLoginSection);
+        }
+
 
         // --- Initialisierung ---
         fetchTimerData(); // Fetch timer on page load using Access Key
